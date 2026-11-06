@@ -279,7 +279,7 @@
 
   <div class="block" id="rooms">
     <h3>Scene reconstruction</h3>
-    <div class="prose"><p>PhysDec-Loop reconstructs objects from scanned points. A scene-level VLM then infers support relations, and a physics solver adjusts placements without changing part geometry.</p><p class="note">Explore four Replica rooms. Click an object to highlight it; drag to rotate and Ctrl/⌘ + scroll to zoom. Additional rooms include manual adjustments.</p></div>
+    <div class="prose"><p>PhysDec-Loop reconstructs objects from scanned points. A scene-level VLM then infers support relations, and a physics solver adjusts placements without changing part geometry.</p><p class="note">Input point clouds and reconstructed scenes from four Replica rooms, shown with synchronized views. Click a reconstructed object to highlight it; drag to rotate and Ctrl/⌘ + scroll to zoom. Additional rooms include manual adjustments.</p></div>
     <nav class="tabs rx-tabs" aria-label="Room">
       <button class="tab" type="button" id="room0" data-room="room0" aria-pressed="false">room0</button>
       <button class="tab" type="button" id="room2" data-room="room2" aria-pressed="false">room2</button>
@@ -295,10 +295,14 @@
       <div class="rx-ctl"><span class="lab">Color</span>
         <div class="rx-seg" id="rx-mode"><button type="button" data-v="physics" aria-pressed="true">physics</button><button type="button" data-v="parts" aria-pressed="false">parts</button></div>
       </div>
-      <div class="rx-ctl"><label class="lab" for="rx-scan">Scan</label><input type="checkbox" id="rx-scan"><input type="range" id="rx-scanop" min="0.05" max="1" step="0.05" value="0.55" aria-label="Scan point opacity"></div>
+      <div class="rx-ctl"><label class="lab" for="rx-scan">Scan overlay</label><input type="checkbox" id="rx-scan"><input type="range" id="rx-scanop" min="0.05" max="1" step="0.05" value="0.55" aria-label="Scan overlay opacity"></div>
       <div class="rx-ctl"><button class="rx-btn" id="rx-reset" type="button">Reset view</button><button class="rx-btn" id="rx-top" type="button">Top view</button></div>
     </div>
     <div class="rx-bench">
+      <div class="rx-pane">
+        <div class="rx-head"><h4 class="rx-method">Input point cloud</h4></div>
+        <div class="rx-view" id="rx-viewInput"><div class="rx-wait">Loading…</div></div>
+      </div>
       <div class="rx-pane">
         <div class="rx-head"><h4 class="rx-method">SuperDec</h4></div>
         <div class="rx-view" id="rx-viewA"><div class="rx-wait">Loading…</div></div>
@@ -516,7 +520,7 @@
   /* Scenes and more simulation results. The four rooms load only when they come near, about 7 MB each. */
   const ROOMS = ["room0", "room2", "office2", "office4"];
   // SuperDec and SuperFlex are the versions in the paper: SuperDec on normalized input, SuperFlex with its unsup_robust ASE weights
-  const SIDES = ["A", "B", "C"], START = { A: "superdec_normalized", B: "superflex_occ_ase_unsup", C: "ours" };
+  const SIDES = ["Input", "A", "B", "C"], START = { A: "superdec_normalized", B: "superflex_occ_ase_unsup", C: "ours" };
   const PART = [0xE69F00, 0x56B4E9, 0x009E73, 0xCC79A7, 0x0072B2, 0xD55E00, 0xF0E442, 0x999999];
   const TINT = { ok: "rgb(35,120,74)", bad: "rgb(190,52,40)", fixed: "rgb(46,110,180)", gone: "#98a2ac", warn: "rgb(214,118,20)", neutral: "#6f7d8c" };
   const STATE = { "at rest": ["at rest", "ok"], moved: ["moved or fell", "bad"], fixed: ["held", "fixed"], removed: ["removed", "gone"], "blew up": ["blew up, taken out", "warn"], excluded: ["left out", "gone"], missing: ["not delivered", "gone"] };
@@ -593,6 +597,7 @@
     const T = rxThree, host = $("rx-view" + side);
     const renderer = new T.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+    renderer.domElement.setAttribute("aria-label", host.parentElement.querySelector(".rx-method").textContent + " scene view");
     host.prepend(renderer.domElement);
     const scene = new T.Scene(); scene.background = new T.Color(0xeef1f4);
     const camera = new T.PerspectiveCamera(45, 4 / 3, .05, 200); camera.up.set(0, 0, 1);
@@ -604,7 +609,7 @@
     // a plain wheel keeps scrolling the page; Ctrl, Cmd or a pinch zooms
     host.addEventListener("wheel", (e) => { if (!e.ctrlKey && !e.metaKey) e.stopPropagation(); }, { capture: true, passive: true });
     const tip = el("div", "rx-tip"); tip.hidden = true; host.append(tip);
-    const v = { side, host, renderer, scene, camera, controls, tip, groups: new Map(), scanPts: null, method: null, dirty: true };
+    const v = { side, isInput: side === "Input", host, renderer, scene, camera, controls, tip, groups: new Map(), scanPts: null, method: null, dirty: true };
     new ResizeObserver(() => { const w = host.clientWidth, h = host.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); v.dirty = true; }).observe(host);
     const ray = new T.Raycaster();
     const hit = (ev) => {
@@ -637,22 +642,30 @@
     const T = rxThree;
     for (const g of v.groups.values()) v.scene.remove(g);
     v.groups.clear();
-    if (v.scanPts) v.scene.remove(v.scanPts);
-    v.scanPts = new T.Points(d.scanGeo, new T.PointsMaterial({ size: .014, vertexColors: true, transparent: true, opacity: rx.scanOp, depthWrite: false }));
-    v.scanPts.visible = rx.scan; v.scene.add(v.scanPts);
+    if (v.scanPts) { v.scene.remove(v.scanPts); v.scanPts.material.dispose(); }
+    v.scanPts = new T.Points(d.scanGeo, new T.PointsMaterial({ size: v.isInput ? .02 : .014, vertexColors: true, transparent: !v.isInput, depthWrite: v.isInput }));
+    v.scene.add(v.scanPts); rxUpdateScan(v);
     v.method = mid;
-    if (!d.methods[mid]) return;
+    const w = v.host.querySelector(".rx-wait"); if (w) w.remove();
+    if (v.isInput || !d.methods[mid]) return;
     for (const m of rxGeoms(d, mid)) {
       let g = v.groups.get(m.o);
       if (!g) { g = new T.Group(); g.matrixAutoUpdate = false; g.userData.obj = m.o; v.groups.set(m.o, g); v.scene.add(g); }
       const mesh = new T.Mesh(m.g, new T.MeshStandardMaterial({ roughness: .78, metalness: 0, side: T.DoubleSide, transparent: true }));
       mesh.userData = { o: m.o, p: m.p, n: m.n }; g.add(mesh);
     }
-    const w = v.host.querySelector(".rx-wait"); if (w) w.remove();
     rxPose(v); rxPaint(v);
+  }
+  function rxUpdateScan(v) {
+    if (v.scanPts) {
+      v.scanPts.visible = v.isInput || rx.scan;
+      v.scanPts.material.opacity = v.isInput ? 1 : rx.scanOp;
+    }
+    v.dirty = true;
   }
   const unit = { }; 
   function rxPose(v) {
+    if (v.isInput) return;
     const T = rxThree, mo = rxMotion(rx.data, v.method), i = Math.floor(rx.time), f = rx.time - i;
     unit.s = unit.s || new T.Vector3(1, 1, 1); unit.t = unit.t || new T.Vector3(); unit.q = unit.q || new T.Quaternion();
     for (const [k, g] of v.groups) {
@@ -734,8 +747,8 @@
     });
   }
   rxSeg("rx-mode", "mode", () => { rxLegend(); eachView(rxPaint); });
-  $("rx-scan").addEventListener("change", (ev) => { rx.scan = ev.target.checked; eachView((v) => { if (v.scanPts) v.scanPts.visible = rx.scan; v.dirty = true; }); });
-  $("rx-scanop").addEventListener("input", (ev) => { rx.scanOp = +ev.target.value; eachView((v) => { if (v.scanPts) v.scanPts.material.opacity = rx.scanOp; v.dirty = true; }); });
+  $("rx-scan").addEventListener("change", (ev) => { rx.scan = ev.target.checked; eachView(rxUpdateScan); });
+  $("rx-scanop").addEventListener("input", (ev) => { rx.scanOp = +ev.target.value; eachView(rxUpdateScan); });
   $("rx-reset").onclick = rxFrameAll;
   $("rx-top").onclick = rxTopView;
   function rxLegend() {
