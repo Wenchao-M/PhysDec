@@ -1,0 +1,1054 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhysDec | Decompose, Verify, Evolve</title>
+<meta name="description" content="PhysDec: physically grounded shape decomposition through VLM reasoning, geometric tools and physical verification.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;650;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#overview">Skip to abstract</a>
+<main id="main-content"><nav class="site-nav wrap" aria-label="On this page"><a class="brand" href="#main-content">PhysDec<span class="brand-dot" aria-hidden="true"></span></a><div class="nav-links"><a href="#video">Video</a><a href="#method">Method</a><a href="#results">Results</a><a href="#rooms">Scenes</a><a href="#robot">Manipulation</a></div><button id="all-motion" type="button">Pause animations</button></nav><header class="wrap hero"><p class="eyebrow">PhysDec</p>
+<h1>Decompose, Verify, Evolve: <span class="title-sub">Physically Grounded Shape Decomposition</span></h1>
+<p class="lede">An agentic pipeline for physically grounded shape decomposition from a few images.</p>
+<div class="author-block">
+  <p class="authors"><span>Wenchao Ma<sup>1,*</sup></span><span>Rui Yu<sup>2,*</sup></span><span>Fan Zhu<sup>2</sup></span><span>Jiachen Liu<sup>3</sup></span><span>Sharon X. Huang<sup>1</sup></span></p>
+  <p class="affiliations"><span><sup>1</sup>Pennsylvania State University</span><span><sup>2</sup>University of Louisville</span><span><sup>3</sup>Netflix</span></p>
+  <p class="equal-contribution"><sup>*</sup>Equal contribution</p>
+</div>
+<div class="hero-actions"><a class="action primary" href="#drop">Explore the results <span aria-hidden="true">↓</span></a><a class="action" href="#method">How it works <span aria-hidden="true">↘</span></a></div></header>
+
+<div class="wrap stage" id="drop">
+  <div class="demo-heading"><div><p class="eyebrow">Geometry meets physics</p><h2>Decompositions that hold together.</h2></div><span class="demo-hint">Drag to rotate · Play to simulate</span></div><div class="panels" id="drop-panels">
+    <canvas id="drop-canvas" hidden aria-label="Interactive 3D view of the input points and each method's primitives during the physics test. Drag to rotate."></canvas>
+    <div class="panel" data-i="0"><img class="still" alt="Input points"><span class="tag">Input points</span><span class="verdict quiet">Reference geometry</span></div>
+    <div class="panel" data-i="1"><img class="still" alt="SuperDec after the physics test"><span class="tag">SuperDec</span><span class="verdict"></span></div>
+    <div class="panel" data-i="2"><img class="still" alt="SuperFlex after the physics test"><span class="tag">SuperFlex</span><span class="verdict"></span></div>
+    <div class="panel" data-i="3"><img class="still" alt="PhysDec after the physics test"><span class="tag" style="color:var(--vlm)">PhysDec-Loop</span><span class="verdict"></span></div>
+  </div>
+  <div class="controls" id="drop-controls" hidden>
+    <button class="btn" id="drop-play" type="button">Pause</button>
+    <input id="drop-time" type="range" min="0" max="4" step="0.04" value="0" aria-label="Simulation time in seconds">
+    <span id="drop-clock">t = 0.00 s</span>
+    <button class="btn quiet" id="drop-reset" type="button">Reset view</button>
+  </div>
+  <div class="chips" id="drop-chips" role="group" aria-label="Choose an object"></div>
+  <p class="note" id="drop-note">Compared with geometry-focused methods, PhysDec produces physically plausible decompositions whose parts remain connected and stable in simulation.</p>
+</div>
+
+<section class="wrap" id="overview">
+  <div class="prose">
+<p class="section-index">01 / Abstract</p>
+<h2>Abstract</h2>
+<p>Shape decomposition represents 3D objects as a compact set of geometric primitives for interpretable modeling and simulation. However, existing decomposition methods are trained primarily for geometric fidelity, without explicit constraints on physical plausibility, and can therefore produce disconnected parts or physically unstable reconstructions. We present PhysDec, an agentic pipeline that draws on a pretrained vision-language model's semantic understanding and commonsense reasoning to predict material-aware primitive decompositions from a few images. PhysDec-Loop reasons about part structure and materials, using a reference 3D point cloud for geometric feedback and physical verifiers to guide iterative refinement. Through self-evolution, we develop PhysDec-Evolved, which learns from prior corrections to predict primitive decompositions from images alone, without reference geometry or a correction loop at inference. Experiments show that PhysDec-Loop improves geometric fidelity, physical plausibility and visual quality over geometry-focused baselines, while PhysDec-Evolved approaches its performance at substantially lower inference cost.</p>
+</div>
+  <div class="block" id="video">
+    <h3>Video</h3>
+    <video class="talk" width="1920" height="1080" style="width:100%;height:auto;background:#fff" src="assets/video/physdec.mp4" poster="assets/video/physdec.jpg" controls playsinline preload="none" aria-label="PhysDec: narrated paper video"></video>
+    <p class="note">A three-minute narrated overview of the paper; captions are in the player.</p>
+  </div>
+    </section>
+
+<section class="wrap" id="method">
+  <div class="prose"><p class="section-index">02 / Method</p><h2>Method</h2>
+    <p>Given one to four images, PhysDec predicts a compact set of primitives, each with geometry, pose and material attributes.</p>
+  </div>
+
+  <div class="variant-grid"><article class="variant"><span class="variant-label">Iterative refinement</span><h3>PhysDec-Loop</h3><p>Refines decompositions through geometric and physical feedback, using a reference 3D point cloud.</p></article><article class="variant direct"><span class="variant-label">Experience-guided prediction</span><h3>PhysDec-Evolved</h3><p>Uses evolved prompts and retrieved experience to predict from images alone, without an online correction loop.</p></article></div><div class="block">
+    <div class="prose"><p class="role v">Decompose</p><h3>Compact geometry, meaningful parts</h3></div>
+    <div class="split two">
+      <div class="prose" style="max-width:none">
+        <p>Our primitive vocabulary includes superellipsoids, toroids and hyperboloids, with tapering, bending, swept tubes and radial arrays.</p>
+        <div class="vocab" id="vocab"></div>
+        <div class="pair">
+          <figure style="margin:0"><img width="392" height="560" src="assets/primitives_col/photo.png" alt="Image of an office chair" loading="lazy"></figure>
+          <figure style="margin:0"><img width="633" height="1096" src="assets/primitives_col/result.png" alt="The office chair as primitives, colored by primitive type" loading="lazy"></figure>
+        </div>
+        <p class="note">An office-chair decomposition, colored by primitive type.</p>
+      </div>
+      <div class="prose" style="max-width:none">
+        <p>Each part has a material and a solid, tubular or thin-shell construction. Together, these determine its effective density and simulation mass.</p>
+        <div class="materials-reference" aria-labelledby="materials-heading">
+          <h4 id="materials-heading">Materials and effective densities</h4>
+          <p class="note">Density in kg/m³: solid / tube / shell. A dash indicates an unavailable construction.</p>
+          <div class="menu" id="menu"><figure><img width="280" height="201" src="assets/materials_col/swatch_metal.png" alt="Metal material" loading="lazy"><b>metal</b><span>7800/1200/200</span></figure><figure><img width="280" height="201" src="assets/materials_col/swatch_wood.png" alt="Wood material" loading="lazy"><b>wood</b><span>650/&ndash;/120</span></figure><figure><img width="280" height="201" src="assets/materials_col/swatch_stone.png" alt="Stone material" loading="lazy"><b>stone</b><span>2600/&ndash;/&ndash;</span></figure><figure><img width="280" height="201" src="assets/materials_col/swatch_glass.png" alt="Glass material" loading="lazy"><b>glass</b><span>2500/&ndash;/300</span></figure><figure><img width="280" height="201" src="assets/materials_col/swatch_plastic.png" alt="Plastic material" loading="lazy"><b>plastic</b><span>1100/&ndash;/150</span></figure><figure><img width="280" height="201" src="assets/materials_col/swatch_fabric.png" alt="Fabric material" loading="lazy"><b>fabric</b><span>&ndash;/&ndash;/20</span></figure><figure><img width="280" height="201" src="assets/materials_col/swatch_upholstery.png" alt="Upholstery material" loading="lazy"><b>upholstery</b><span>60/&ndash;/&ndash;</span></figure><figure><img width="280" height="201" src="assets/materials_col/swatch_leather.png" alt="Leather material" loading="lazy"><b>leather</b><span>90/&ndash;/&ndash;</span></figure><figure><img width="280" height="201" src="assets/materials_col/swatch_rubber.png" alt="Rubber material" loading="lazy"><b>rubber</b><span>1200/&ndash;/300</span></figure><figure><img width="280" height="201" src="assets/materials_col/swatch_ceramic.png" alt="Ceramic material" loading="lazy"><b>ceramic</b><span>2300/&ndash;/400</span></figure><figure><img width="280" height="201" src="assets/materials_col/swatch_paper.png" alt="Paper material" loading="lazy"><b>paper</b><span>&ndash;/&ndash;/10</span></figure></div>
+        </div>
+        <div class="lamp">
+          <figure><figcaption>Image</figcaption><img width="336" height="560" src="assets/materials_col/photo.png" alt="Image of a lamp" loading="lazy"></figure>
+          <figure><figcaption><span class="bad">Falls</span><br>Uniform density</figcaption><video class="anim" width="524" height="400" src="assets/anim/lamp_falls.mp4" poster="assets/anim/lamp_falls.jpg" muted loop playsinline preload="none" aria-label="At one density the lamp falls over"></video></figure>
+          <figure><figcaption><span class="ok">Stands</span><br>Predicted materials</figcaption><video class="anim" width="236" height="400" src="assets/anim/lamp_stands.mp4" poster="assets/anim/lamp_stands.jpg" muted loop playsinline preload="none" aria-label="With the model's materials the lamp stands"></video></figure>
+          <ul>
+            <li style="color:#0072B2">shade spider: metal, tube</li>
+            <li style="color:#CC79A7">bulb socket: metal, solid</li>
+            <li style="color:#009E73">drum shade: metal, shell</li>
+            <li style="color:#2d8fc9">arc pole: metal, tube</li>
+            <li style="color:#b57f00">base: stone, solid</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  <div class="checks" id="checks"></div>
+    <p class="note">Physical checks assess connectivity, standing stability, wall contact and suspended balance. Wall contact is checked geometrically; hinge motion illustrates the failing example.</p>
+  </div>
+
+  <div class="block">
+    <div class="prose"><p class="role o">Verify</p><h3>PhysDec-Loop</h3>
+      <p>The VLM analyzes the images and proposes a decomposition. Geometric and physical verifiers assess the proposal; Critique turns their outputs into feedback, which Propose uses to revise the decomposition.</p>
+    </div>
+    <div class="loop" aria-label="PhysDec-Loop: analyse, propose, verify and critique">
+      <article class="box"><header><h4>Input</h4></header>
+        <div class="photos"><img width="213" height="232" src="assets/loop/photo_0.png" alt="" loading="lazy"><img width="213" height="232" src="assets/loop/photo_1.png" alt="" loading="lazy"><img width="213" height="232" src="assets/loop/photo_2.png" alt="" loading="lazy"><img width="213" height="232" src="assets/loop/photo_3.png" alt="" loading="lazy"></div>
+        <p class="label" style="text-align:center">4 images + cameras</p>
+      </article>
+      <div class="arr"></div>
+      <article class="box"><header><span class="step">1</span><h4>Analyse</h4><span class="who v">VLM</span></header>
+        <p class="small"><b>drafting chair</b> <span class="quiet">free-standing</span></p>
+        <ul class="parts">
+          <li><i style="background:#0072B2"></i>seat<em>upholstery</em></li>
+          <li><i style="background:#D55E00"></i>backrest<em>plastic</em></li>
+          <li><i style="background:#96a0b0"></i>armrest ×2<em>plastic</em></li>
+          <li><i style="background:#009E73"></i>gas column<em>metal</em></li>
+          <li><i style="background:#CC79A7"></i>foot ring<em>metal</em></li>
+          <li><i style="background:#E69F00"></i>base leg ×5<em>metal</em></li>
+          <li><i style="background:#56B4E9"></i>caster ×5<em>plastic</em></li>
+        </ul>
+      </article>
+      <div class="arr"></div>
+      <div class="cycle">
+        <div class="cycle-row">
+          <article class="box"><header><span class="step">2</span><h4>Propose</h4><span class="who v">VLM</span></header>
+            <img width="463" height="384" src="assets/loop/proposal.png" alt="The proposed chair, round 0" loading="lazy" style="width:100%;height:auto">
+            <p class="label" style="text-align:center">round 0</p>
+          </article>
+          <div class="arr"></div>
+          <article class="box"><header><span class="step o">3</span><h4>Verify</h4><span class="who o">code + VLM</span></header>
+            <div class="verify-grid">
+              <div><h4>Geometry</h4><img width="315" height="295" src="assets/loop/geometry.png" alt="Reference points colored by distance to the prediction" loading="lazy" style="width:100%;height:auto"></div>
+              <div><h4>Physics</h4><video class="anim" width="316" height="296" src="assets/anim/loop_physics.mp4" poster="assets/anim/loop_physics.jpg" muted loop playsinline preload="none" aria-label="Drop test of round 0: the parts that move turn red"></video><p class="label bad">✗ 2 pieces</p></div>
+              <div><h4>VLM review</h4>
+                <div class="bars" id="bars"></div>
+                <p class="label" style="padding-top:4px">62 / 100</p>
+              </div>
+            </div>
+          </article>
+          <article class="box"><header><span class="step">4</span><h4>Critique</h4><span class="who v">VLM</span></header>
+            <blockquote>“Most important is the floating foot ring. The physics image shows it red, about 0.12 from anything, and it fell down the column.”</blockquote>
+          </article>
+        </div>
+        <p class="back">next round, up to 3</p>
+      </div>
+    </div>
+    <div class="split two">
+      <div class="prose" style="max-width:none"><h4>Select physically valid predictions</h4><p>We retain the highest-scoring decomposition that passes the physical checks. If none passes, we retain the highest-scoring proposal.</p></div>
+      <div class="prose" style="max-width:none"><h4>Turn verification into feedback</h4><p>Chamfer error maps reveal local shape errors. Physical checks test stability for the predicted support type, while a VLM reviews visual quality. Critique combines these signals into part-specific revision guidance.</p></div>
+    </div>
+    </div>
+
+  <div class="block">
+    <div class="prose"><p class="role e">Evolve</p><h3>PhysDec-Evolved</h3>
+      <p>Self-evolution converts verified corrections into improved prompts and a library of examples, insights and material priors. PhysDec-Evolved uses this experience to predict in two VLM calls, with fixed model weights and no online correction loop.</p>
+    </div>
+    <div class="lanes">
+      <p class="lane-title">Learn from training objects <small>Reference geometry available</small></p>
+      <div class="lane train">
+        <article class="box"><header><h4>PhysDec-Loop</h4><span class="who quiet">the loop above</span></header>
+          <div class="rounds"><span>round 0</span><span class="pairup">round 1</span><span class="pairup">round 2</span><span>round 3</span></div>
+          <p class="small who l">A correction pair: the score rose.</p>
+        </article>
+        <article class="box"><header><h4 style="color:var(--library)">Library</h4></header>
+          <p class="label">exemplars: corrected results</p>
+          <div class="exemplars"><img width="280" height="140" src="assets/evolution/exemplar_0_small.png" alt="" loading="lazy" style="width:100%;height:auto"><img width="280" height="140" src="assets/evolution/exemplar_1.png" alt="" loading="lazy" style="width:100%;height:auto"><img width="280" height="140" src="assets/evolution/exemplar_2.png" alt="" loading="lazy" style="width:100%;height:auto"></div>
+          <p class="small"><span class="label">insights</span> <i>when</i> a magazine hangs below the body, <i>do</i> size it as measured …</p>
+          <p class="small"><span class="label">priors</span> materials by part</p>
+        </article>
+        <article class="box"><header><h4 style="color:var(--evolve)">Prompt evolution</h4><span class="who e">GEPA</span></header>
+          <div class="flow"><span>serve on training objects</span><span>score against ground truth</span><span>reflect, rewrite one block</span></div>
+          <p class="small quiet">Keep the better prompt, and repeat.</p>
+        </article>
+      </div>
+      <div class="feeds" aria-hidden="true"><span></span><span>↓ the library</span><span>↓ the evolved blocks</span></div>
+      <p class="lane-title">Predict a new object <small>Images only · Two VLM calls</small></p>
+      <div class="lane test">
+        <article class="box"><header><h4>Images</h4></header>
+          <div class="photos"><img width="187" height="154" src="assets/evolution/photo_0.png" alt="" loading="lazy"><img width="187" height="154" src="assets/evolution/photo_1.png" alt="" loading="lazy"><img width="187" height="154" src="assets/evolution/photo_2.png" alt="" loading="lazy"><img width="187" height="154" src="assets/evolution/photo_3.png" alt="" loading="lazy"></div>
+        </article>
+        <article class="box"><header><span class="step">1</span><h4>Analyse</h4><span class="who v">VLM</span></header>
+          <p class="small"><b>rifle</b> <span class="quiet">handheld</span></p>
+          <ul class="parts">
+            <li><i style="background:#CC79A7"></i>barrel<em>metal</em></li>
+            <li><i style="background:#E69F00"></i>receiver<em>metal</em></li>
+            <li><i style="background:#F0E442"></i>magazine<em>plastic</em></li>
+          </ul>
+          <p class="label">+ 8 more</p>
+        </article>
+        <article class="box"><header><h4>Retrieve</h4></header>
+          <img width="492" height="246" src="assets/evolution/exemplar_0.png" alt="The nearest exemplar" loading="lazy" style="width:100%;max-width:190px;height:auto">
+          <p class="small">The nearest exemplar, with its insights and priors.</p>
+        </article>
+        <article class="box"><header><span class="step">2</span><h4>Propose</h4><span class="who v">VLM</span></header>
+          <div class="blocks"><div class="frozen">frozen: frame, parameters, families, materials, schema</div><div class="evo">evolved: structure, construction</div><div class="ret">retrieved: exemplar, insights, priors</div></div>
+          <p class="small quiet">No render, no simulation, no critique.</p>
+        </article>
+        <article class="box"><header><h4>Output</h4></header>
+          <img width="404" height="256" src="assets/evolution/output.png" alt="The predicted rifle" loading="lazy" style="width:100%;height:auto">
+          <p class="label" style="text-align:center">two model calls</p>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="results">
+  <div class="prose"><p class="section-index">03 / Evaluation</p><h2>Results</h2>
+    <p>We compare with SQ, EMS, Marching-Primitives, SuperDec and SuperFlex on geometric fidelity, physical plausibility and visual quality.</p>
+  </div>
+
+  <div class="block">
+    <h3>ShapeNet objects</h3>
+    <div class="split abs">
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Method</th><th>CD-L1 ↓</th><th>#Prim.</th><th>Phys. pass (%) ↑</th><th>VLM ↑<br>Sonnet 5.5</th><th>VLM ↑<br>GPT-6.1 Sol</th></tr></thead>
+          <tbody id="t-base"></tbody>
+        </table>
+      </div>
+      <div class="table-side">
+        <p class="small">585 test objects across 13 categories. PhysDec receives four images; baselines receive ground-truth point clouds. PhysDec-Loop also uses the reference point cloud for verifier feedback.</p>
+        <p class="small">PhysDec-Loop achieves the lowest Chamfer distance and the highest physical-check pass rate and visual scores. Most baseline failures involve disconnected parts, despite plausible surface fits.</p>
+        <p class="note">† Receives an SDF of the reference shape instead of a point cloud. Two judges grade the same renders.</p>
+      </div>
+    </div>
+    <div class="result-gallery">
+      <h4>Visual Quality Comparison</h4>
+      <p class="note">Primitive decompositions from the baselines, PhysDec-Evolved and PhysDec-Loop.</p>
+      <div class="scroll"><div class="grid8" id="gallery-visual" role="group" aria-label="Visual quality comparison"></div></div>
+    </div>
+    <div class="result-gallery">
+      <h4>Physical Plausibility Comparison</h4>
+      <p class="note">A different set of ShapeNet objects simulated for 4 s. Marks indicate physical-check outcomes.</p>
+      <div class="scroll"><div class="grid8 rows" id="gallery-physics" role="group" aria-label="Physical plausibility comparison on separate objects"></div></div>
+      <p class="note">Unstable playback may remove ejected parts or freeze at the last valid frame.</p>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>Comparable quality with fewer model calls</h3>
+    <div class="split abs">
+      <div class="tbl">
+        <table>
+          <thead><tr><th> </th><th>Calls</th><th>CD-L1 ↓</th><th>#Prim.</th><th>Phys. pass (%) ↑</th><th>VLM ↑</th></tr></thead>
+          <tbody>
+            <tr><th>Base (original prompt)</th><td>2</td><td>1.526</td><td>7.0</td><td>88.4</td><td>73.5</td></tr>
+            <tr class="ours"><th>PhysDec-Evolved</th><td>2.03</td><td>1.528</td><td>8.2</td><td>99.0</td><td>75.8</td></tr>
+            <tr><th>PhysDec-Loop (3 rounds)</th><td>13.0</td><td>1.448</td><td>7.4</td><td>99.3</td><td>78.0</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-side">
+        <p class="small">Using only 20 training objects per category (260 in total), self-evolution raises physical validity from 88.4% to 99.0%. PhysDec-Evolved approaches PhysDec-Loop’s physical and visual quality with 2.03 rather than 13.0 model calls per object.</p>
+        </div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>Partial observations</h3>
+    <div class="partial-wide">
+      <div class="prose" style="max-width:none">
+        <p class="small">On 52 objects from 11 ASE scenes, PhysDec-Loop improves geometric fidelity and physical validity from partial observations. It uses rendered views of the same partial point clouds supplied to the baselines.</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>Method</th><th>CD-L1 ↓</th><th>#Prim.</th><th>Phys. pass (%) ↑</th><th>VLM ↑</th></tr></thead>
+            <tbody>
+              <tr><th>SuperDec</th><td>4.18</td><td>5.5</td><td>11.5</td><td>35.7</td></tr>
+              <tr><th>SuperFlex</th><td>4.37</td><td>5.5</td><td>19.2</td><td>41.8</td></tr>
+              <tr><th>SuperFlex (ASE-tuned)</th><td>2.59</td><td>4.2</td><td>65.4</td><td>52.4</td></tr>
+              <tr class="ours"><th>PhysDec-Loop</th><td>2.22</td><td>7.5</td><td>100.0</td><td>77.4</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">SuperFlex (ASE-tuned) is fine-tuned on partial ASE clouds.</p>
+      </div>
+      <div class="grid4" id="partial"></div>
+    </div>
+  </div>
+
+
+  <div class="block" id="rooms">
+    <h3>Scene reconstruction</h3>
+    <div class="prose"><p>PhysDec-Loop reconstructs objects from scanned points. A scene-level VLM then infers support relations, and a physics solver adjusts placements without changing part geometry.</p><p class="note">Explore four Replica rooms. Click an object to highlight it; drag to rotate and Ctrl/⌘ + scroll to zoom. Additional rooms include manual adjustments.</p></div>
+    <nav class="tabs rx-tabs" aria-label="Room">
+      <button class="tab" type="button" id="room0" data-room="room0" aria-pressed="false">room0</button>
+      <button class="tab" type="button" id="room2" data-room="room2" aria-pressed="false">room2</button>
+      <button class="tab" type="button" id="office2" data-room="office2" aria-pressed="false">office2</button>
+      <button class="tab" type="button" id="office4" data-room="office4" aria-pressed="false">office4</button>
+    </nav>
+    <div class="rx-bar" role="group" aria-label="View controls">
+      <div class="rx-ctl">
+        <button class="rx-btn" id="rx-play" type="button">Pause</button>
+        <input type="range" id="rx-time" min="0" max="25" value="0" step="0.1" aria-label="Time">
+        <span id="rx-tlabel">0.0 s, as placed</span>
+      </div>
+      <div class="rx-ctl"><span class="lab">Color</span>
+        <div class="rx-seg" id="rx-mode"><button type="button" data-v="physics" aria-pressed="true">physics</button><button type="button" data-v="parts" aria-pressed="false">parts</button></div>
+      </div>
+      <div class="rx-ctl"><label class="lab" for="rx-scan">Scan</label><input type="checkbox" id="rx-scan"><input type="range" id="rx-scanop" min="0.05" max="1" step="0.05" value="0.55" aria-label="Scan point opacity"></div>
+      <div class="rx-ctl"><button class="rx-btn" id="rx-reset" type="button">Reset view</button><button class="rx-btn" id="rx-top" type="button">Top view</button></div>
+    </div>
+    <div class="rx-bench">
+      <div class="rx-pane">
+        <div class="rx-head"><h4 class="rx-method">SuperDec</h4></div>
+        <div class="rx-view" id="rx-viewA"><div class="rx-wait">Loading…</div></div>
+      </div>
+      <div class="rx-pane">
+        <div class="rx-head"><h4 class="rx-method">SuperFlex</h4></div>
+        <div class="rx-view" id="rx-viewB"><div class="rx-wait">Loading…</div></div>
+      </div>
+      <div class="rx-pane">
+        <div class="rx-head"><h4 class="rx-method">Ours</h4></div>
+        <div class="rx-view" id="rx-viewC"><div class="rx-wait">Loading…</div></div>
+      </div>
+    </div>
+    <div class="rx-legend" id="rx-legend"></div>
+    </div>
+
+  <div class="block">
+    <h3>Ablations</h3>
+    <div class="split abs">
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Variant</th><th>CD-L1 ↓</th><th>#Prim.</th><th>Phys. pass (%) ↑</th><th>VLM ↑</th></tr></thead>
+          <tbody>
+            <tr class="ours"><th>PhysDec-Loop</th><td>1.421</td><td>7.2</td><td>99.0</td><td>78.2</td></tr>
+            <tr class="group"><th colspan="5">Verifiers</th></tr>
+            <tr><th class="indent">w/o physics</th><td>1.415</td><td>7.4</td><td>93.3</td><td>79.0</td></tr>
+            <tr><th class="indent">w/o VLM review</th><td>1.417</td><td>7.1</td><td>97.9</td><td>75.1</td></tr>
+            <tr><th class="indent">w/o point cloud</th><td>1.479</td><td>7.4</td><td>98.5</td><td>80.0</td></tr>
+            <tr class="group"><th colspan="5">Input</th></tr>
+            <tr><th class="indent">Single view</th><td>1.601</td><td>7.0</td><td>97.9</td><td>72.9</td></tr>
+            <tr class="group"><th colspan="5">Model configuration</th></tr>
+            <tr><th class="indent">GPT-6.1 Sol</th><td>1.329</td><td>9.3</td><td>99.0</td><td>82.0</td></tr>
+          <tr><th class="indent">Qwen3.8-Flash-Next</th><td>1.670</td><td>7.0</td><td>98.5</td><td>69.5</td></tr></tbody>
+        </table>
+      </div>
+      <div class="table-side">
+        <p class="small">Physical feedback improves validity; VLM review improves visual quality. Point-cloud feedback and multiple views improve geometric accuracy. The cheaper, open-source Qwen configuration also retains a high physical-check pass rate of 98.5%.</p>
+        <p class="note">195 ShapeNet objects, one run per variant without resampling. Ablated verifiers are removed from feedback, scoring and selection. Sonnet 5.5 grades every row; Qwen uses Qwen3.8-27B for review.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="robot">
+  <div class="prose"><p class="section-index">04 / Application</p><h2>Robot manipulation</h2>
+    <p>We evaluate pick-and-place manipulation in the reconstructed Replica scenes using a KUKA arm with an Allegro hand. All methods use the same grasp planner with matched object masses. PhysDec supports successful manipulation, while baseline failures include missing grasps, disconnected parts and collisions. A reconstruction that falls apart or topples when released has already failed; the robot then grips its pieces where they lie, or, if no grasp passes, only acts out an attempt.</p>
+    <p class="small">Selected qualitative examples. Use the tabs to switch objects and scenes.</p>
+  </div>
+
+  <div class="block"><div id="scene-clips"></div></div>
+
+  <div class="block" id="plane">
+    <h3>ShapeNet objects on a ground plane</h3>
+    <div class="prose">
+      <p class="small">We also manipulate ShapeNet reconstructions from the object evaluation on a ground plane. The robot lifts, carries and places each object; success requires moving all its parts and leaving it stable.</p>
+      <p class="note">Selected objects pass PhysDec’s physical checks and fail both baselines’ checks. These demonstrations do not estimate overall manipulation success.</p></div>
+    <div class="rx-clips" id="plane-clips"></div>
+  </div>
+</section>
+
+
+
+<section class="wrap" id="cite">
+  <div class="prose" style="max-width:none"><h2>Citation</h2>
+    <pre id="bib">@misc{physdec2027,
+  title     = {Decompose, Verify, Evolve: Physically Grounded Shape Decomposition},
+  author    = {Ma, Wenchao and Yu, Rui and Zhu, Fan and Liu, Jiachen and Huang, Sharon X.},
+  note      = {Under review},
+  year      = {2027},
+  url       = {https://wenchao-m.github.io/PhysDec/}
+}</pre>
+    <div><button class="btn quiet" id="bib-copy" type="button">Copy BibTeX</button></div>
+  </div>
+</section>
+
+<footer class="wrap"><p class="note">PhysDec · Decompose, Verify, Evolve.</p></footer>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
+  const SIZES = /*sizes*/{"assets/gallery_visual/sf_bench_39_S3_cam.png":[480,377],"assets/gallery_visual/sf_bench_39_ems.png":[480,377],"assets/gallery_visual/sf_bench_39_marching_primitives.png":[480,377],"assets/gallery_visual/sf_bench_39_photo.png":[480,377],"assets/gallery_visual/sf_bench_39_sq.png":[480,377],"assets/gallery_visual/sf_bench_39_superdec.png":[480,377],"assets/gallery_visual/sf_bench_39_superflex_tb.png":[480,377],"assets/gallery_visual/sf_bench_39_teacher.png":[480,377],"assets/gallery_visual/sf_cabinet_13_S3_cam.png":[480,570],"assets/gallery_visual/sf_cabinet_13_ems.png":[480,570],"assets/gallery_visual/sf_cabinet_13_marching_primitives.png":[480,570],"assets/gallery_visual/sf_cabinet_13_photo.png":[480,570],"assets/gallery_visual/sf_cabinet_13_sq.png":[480,570],"assets/gallery_visual/sf_cabinet_13_superdec.png":[480,570],"assets/gallery_visual/sf_cabinet_13_superflex_tb.png":[480,570],"assets/gallery_visual/sf_cabinet_13_teacher.png":[480,570],"assets/gallery_visual/sf_lamp_25_S3_cam.png":[480,640],"assets/gallery_visual/sf_lamp_25_ems.png":[480,640],"assets/gallery_visual/sf_lamp_25_marching_primitives.png":[480,640],"assets/gallery_visual/sf_lamp_25_photo.png":[480,640],"assets/gallery_visual/sf_lamp_25_sq.png":[480,640],"assets/gallery_visual/sf_lamp_25_superdec.png":[480,640],"assets/gallery_visual/sf_lamp_25_superflex_tb.png":[480,640],"assets/gallery_visual/sf_lamp_25_teacher.png":[480,640],"assets/gallery_visual/sf_rifle_14_S3_cam.png":[480,89],"assets/gallery_visual/sf_rifle_14_ems.png":[480,89],"assets/gallery_visual/sf_rifle_14_marching_primitives.png":[480,89],"assets/gallery_visual/sf_rifle_14_photo.png":[480,89],"assets/gallery_visual/sf_rifle_14_sq.png":[480,89],"assets/gallery_visual/sf_rifle_14_superdec.png":[480,89],"assets/gallery_visual/sf_rifle_14_superflex_tb.png":[480,89],"assets/gallery_visual/sf_rifle_14_teacher.png":[480,89],"assets/gallery_visual/sf_sofa_22_S3_cam.png":[480,266],"assets/gallery_visual/sf_sofa_22_ems.png":[480,266],"assets/gallery_visual/sf_sofa_22_marching_primitives.png":[480,266],"assets/gallery_visual/sf_sofa_22_photo.png":[480,266],"assets/gallery_visual/sf_sofa_22_sq.png":[480,266],"assets/gallery_visual/sf_sofa_22_superdec.png":[480,266],"assets/gallery_visual/sf_sofa_22_superflex_tb.png":[480,266],"assets/gallery_visual/sf_sofa_22_teacher.png":[480,266],"assets/materials_col/photo.png":[336,560],"assets/materials_col/swatch_ceramic.png":[280,201],"assets/materials_col/swatch_fabric.png":[280,201],"assets/materials_col/swatch_glass.png":[280,201],"assets/materials_col/swatch_leather.png":[280,201],"assets/materials_col/swatch_metal.png":[280,201],"assets/materials_col/swatch_paper.png":[280,201],"assets/materials_col/swatch_plastic.png":[280,201],"assets/materials_col/swatch_rubber.png":[280,201],"assets/materials_col/swatch_stone.png":[280,201],"assets/materials_col/swatch_upholstery.png":[280,201],"assets/materials_col/swatch_wood.png":[280,201],"assets/partial/ase81022_49_ours_cloud.png":[520,448],"assets/partial/ase81022_49_points.png":[520,448],"assets/partial/ase81022_49_superdec.png":[520,448],"assets/partial/ase81022_49_superflex_occ_ase.png":[520,448],"assets/partial/ase81056_47_ours_cloud.png":[435,275],"assets/partial/ase81056_47_points.png":[435,275],"assets/partial/ase81056_47_superdec.png":[435,275],"assets/partial/ase81056_47_superflex_occ_ase.png":[435,275],"assets/partial/ase81161_29_ours_cloud.png":[407,295],"assets/partial/ase81161_29_points.png":[407,295],"assets/partial/ase81161_29_superdec.png":[407,295],"assets/partial/ase81161_29_superflex_occ_ase.png":[407,295],"assets/partial/ase84080_110_ours_cloud.png":[520,469],"assets/partial/ase84080_110_points.png":[520,469],"assets/partial/ase84080_110_superdec.png":[520,469],"assets/partial/ase84080_110_superflex_occ_ase.png":[520,469],"assets/primitives_col/photo.png":[392,560],"assets/primitives_col/result.png":[633,1096],"assets/primitives_col/tile_array.png":[246,187],"assets/primitives_col/tile_bend.png":[246,187],"assets/primitives_col/tile_box.png":[246,187],"assets/primitives_col/tile_cylinder.png":[246,187],"assets/primitives_col/tile_ellipsoid.png":[246,187],"assets/primitives_col/tile_hyperboloid1.png":[246,187],"assets/primitives_col/tile_hyperboloid2.png":[246,187],"assets/primitives_col/tile_taper.png":[246,187],"assets/primitives_col/tile_toroid.png":[246,187],"assets/primitives_col/tile_tube.png":[246,187],"assets/anim/check_hang_fail.mp4":[288,320],"assets/anim/check_hang_pass.mp4":[320,320],"assets/anim/check_piece_fail.mp4":[442,320],"assets/anim/check_piece_pass.mp4":[444,320],"assets/anim/check_stand_fail.mp4":[290,320],"assets/anim/check_stand_pass.mp4":[94,320],"assets/anim/check_wall_fail.mp4":[190,320],"assets/anim/gallery_sf_chair_17.mp4":[2160,360],"assets/anim/gallery_sf_lamp_14.mp4":[2160,238],"assets/anim/gallery_sf_lamp_19.mp4":[2160,360],"assets/anim/gallery_sf_lamp_26.mp4":[2160,318],"assets/anim/lamp_falls.mp4":[524,400],"assets/anim/lamp_stands.mp4":[236,400],"assets/anim/loop_physics.mp4":[316,296],"assets/anim/check_wall_pass.png":[186,320],"assets/plane/sf_chair_30.mp4":[1920,370],"assets/plane/sf_lamp_22.mp4":[1920,370],"assets/plane/sf_bench_37.mp4":[1920,370],"assets/plane/sf_table_32.mp4":[1920,370],"assets/plane/sf_lamp_19.mp4":[1920,370],"assets/plane/sf_chair_17.mp4":[1920,370],"assets/plane/sf_table_46.mp4":[1920,370],"assets/plane/sf_table_36.mp4":[1920,370],"assets/video/bin.mp4":[2052,486],"assets/video/chair.mp4":[2484,516],"assets/video/end_table.mp4":[2700,584],"assets/video/end_table_office2.mp4":[2700,584],"assets/video/chair_office4.mp4":[2700,584],"assets/video/chair_office2.mp4":[2700,584]}/*end*/;
+  const img = (src, alt, now) => { const i = new Image(); const d = SIZES[src]; if (d) { i.width = d[0]; i.height = d[1]; } if (!now) i.loading = "lazy"; i.alt = alt || ""; if (src) i.src = src; return i; };
+
+  /* Everything that moves: plays while on screen, and one switch stops it all */
+  const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let stopped = calm, heroMotion = () => {}, roomMotion = () => {};
+  const onScreen = new WeakSet();
+  const sync = (v) => { if (!stopped && onScreen.has(v)) v.play().catch(() => {}); else v.pause(); };
+  const watcher = "IntersectionObserver" in window ? new IntersectionObserver((es) => es.forEach((e) => {
+    if (e.isIntersecting) onScreen.add(e.target); else onScreen.delete(e.target);
+    sync(e.target);
+  }), { threshold: .1 }) : null;
+  const watch = (v) => { if (watcher) watcher.observe(v); return v; };
+  const anim = (name, label) => {
+    const v = document.createElement("video");
+    v.className = "anim"; v.muted = true; v.defaultMuted = true; v.loop = true; v.playsInline = true;
+    v.setAttribute("playsinline", ""); v.preload = "none"; v.poster = `assets/anim/${name}.jpg`; v.src = `assets/anim/${name}.mp4`;
+    v.setAttribute("aria-label", label);
+    const d = SIZES[`assets/anim/${name}.mp4`]; if (d) { v.width = d[0]; v.height = d[1]; }
+    return watch(v);
+  };
+  document.querySelectorAll("video:not(.talk)").forEach(watch);
+  // the paper video's captions: served as text, handed to the player as WebVTT
+  fetch("assets/video/physdec_captions.txt").then((r) => (r.ok ? r.text() : Promise.reject(r.status))).then((t) => {
+    const tr = document.createElement("track");
+    tr.kind = "captions"; tr.srclang = "en"; tr.label = "English";
+    tr.src = URL.createObjectURL(new Blob([t], { type: "text/vtt" }));
+    document.querySelector("video.talk").append(tr);
+  }).catch(() => {});
+  function motion(on) {
+    stopped = !on;
+    $("all-motion").textContent = on ? "Pause animations" : "Play animations";
+    document.querySelectorAll("video:not(.talk)").forEach(sync);
+    heroMotion(on);
+    roomMotion(on);
+  }
+  $("all-motion").textContent = stopped ? "Play animations" : "Pause animations";
+  $("all-motion").onclick = () => motion(stopped);
+
+  /* Vocabulary, menu, bars, checks: the paper's labels */
+  [["box", "box"], ["cylinder", "cylinder"], ["ellipsoid", "ellipsoid"], ["toroid", "toroid"], ["taper", "taper"],
+   ["hyperboloid1", "one-sheet hyperboloid"], ["hyperboloid2", "two-sheet hyperboloid"], ["bend", "bend"], ["tube", "tube"], ["array", "radial array"]]
+    .forEach(([f, name]) => { const c = el("figure"); c.append(img(`assets/primitives_col/tile_${f}.png`, name), el("figcaption", "", name)); $("vocab").append(c); });
+  [["proportions", 2], ["placement", 2], ["parts", 3], ["part shape", 2], ["identity", 3], ["structure", 3], ["materials", 4]]
+    .forEach(([n, v]) => $("bars").append(el("div", "", `<span>${n}</span><u><s style="width:${v * 25}%"></s></u><span>${v}</span>`)));
+  [["One piece", "all objects", "piece", "one piece", "screen falls"], ["Stand", "free-standing", "stand", "stands", "falls"],
+   ["Wall", "wall-mounted", "wall", "a face", "a point"], ["Hang", "airborne or afloat", "hang", "level", "hangs 10&deg;"]]
+    .forEach(([t, who, f, good, badly]) => {
+      const c = el("div", "check", `<h4>${t} <small>${who}</small></h4>`), d = el("div", "duo");
+      [["pass", good, "ok", "&#10003;"], ["fail", badly, "bad", "&#10007;"]].forEach(([s, text, cls, mark]) => {
+        // the wall test measures a surface and simulates nothing, so its pass is a picture
+        const g = el("figure"); g.append(f === "wall" && s === "pass" ? img(`assets/anim/check_wall_pass.png`, `${t}: ${text}`) : anim(`check_${f}_${s}`, `${t}: ${text}`), el("figcaption", cls, `${mark} ${text}`)); d.append(g);
+      });
+      c.append(d); $("checks").append(c);
+    });
+
+  /* Table 1 */
+  [["SQ", 2.205, 10.0, 72.6, 38.8, 37.8], ["EMS", 2.620, 6.1, 60.5, 38.6, 38.4], ["Marching-Primitives&dagger;", 1.829, 31.3, 77.3, 64.1, 66.0],
+   ["SuperDec", 1.755, 5.1, 56.2, 49.3, 49.9], ["SuperFlex", 1.543, 4.9, 81.7, 58.4, 58.1], ["PhysDec-Loop", 1.448, 7.4, 99.3, 78.0, 77.8]]
+    .forEach((r, i) => {
+      const tr = el("tr", i === 5 ? "ours" : "");
+      tr.innerHTML = `<th>${r[0]}</th><td>${r[1].toFixed(3)}</td><td>${r[2].toFixed(1)}</td>` +
+        `<td><span class="barcell"><u><s style="width:${r[3]}%"></s></u><span>${r[3].toFixed(1)}</span></span></td>` +
+        `<td>${r[4].toFixed(1)}</td><td>${r[5].toFixed(1)}</td>`;
+      $("t-base").append(tr);
+    });
+
+  /* The two object galleries */
+  const COLS = [["photo", "Input"], ["sq", "SQ"], ["ems", "EMS"], ["marching_primitives", "Marching-Prim."], ["superdec", "SuperDec"],
+                ["superflex_tb", "SuperFlex"], ["S3_cam", "PhysDec-Evolved"], ["teacher", "PhysDec-Loop"]];
+  const GAL = {
+    visual: { dir: "gallery_visual", keys: ["sf_cabinet_13", "sf_rifle_14", "sf_bench_39", "sf_lamp_25", "sf_sofa_22"] },
+    physics: { keys: ["sf_chair_17", "sf_lamp_19", "sf_lamp_26", "sf_lamp_14"] }
+  };
+  let verdicts = {};
+  const say = (v) => {
+    if (!v) return null;
+    if (v.clean) return ["ok", "&#10003; " + (/^hangs/.test(v.reason) ? "hangs level" : v.reason)];
+    return ["bad", "&#10007; " + (v.pieces > 1 ? v.pieces + " pieces" : v.reason)];
+  };
+  function galleryMarks(marks) {
+    marks.replaceChildren();
+    COLS.forEach(([c]) => {
+      const v = c === "photo" ? null : say(verdicts[`${marks.dataset.object}/${c}`]);
+      marks.append(el("span", v ? v[0] : "", v ? v[1] : ""));
+    });
+  }
+  function gallery(which) {
+    const g = GAL[which], box = $("gallery-" + which);
+    COLS.forEach(([c, name]) => box.append(el("div", "head" + (name.startsWith("PhysDec") ? " mine" : ""), name)));
+    if (which === "physics") {
+      g.keys.forEach((k) => {
+        const row = anim(`gallery_${k}`, `${k.replace(/^sf_|_\d+$/g, "")}: every method through 4 s of simulation`);
+        row.classList.add("rowvideo"); box.append(row);
+        const marks = el("div", "rowmarks");
+        marks.dataset.object = k;
+        galleryMarks(marks);
+        box.append(marks);
+      });
+    } else {
+      g.keys.forEach((k) => COLS.forEach(([c, name]) => {
+        const f = el("figure");
+        f.append(img(`assets/${g.dir}/${k}_${c}.png`, `${name}, ${k.replace(/^sf_|_\d+$/g, "")}`));
+        box.append(f);
+      }));
+    }
+  }
+  gallery("visual");
+  gallery("physics");
+  fetch("assets/gallery_physics/verdicts.json").then((r) => r.json()).then((v) => {
+    verdicts = v;
+    $("gallery-physics").querySelectorAll(".rowmarks").forEach(galleryMarks);
+  }).catch(() => {});
+
+  /* Partial objects */
+  [["points", "Observed points"], ["superdec", "SuperDec"], ["superflex_occ_ase", "SuperFlex (ASE)"], ["ours_cloud", "PhysDec-Loop"]]
+    .forEach(([s, n]) => $("partial").append(el("div", "head" + (n === "PhysDec-Loop" ? " mine" : ""), n)));
+  ["ase84080_110", "ase81022_49", "ase81161_29", "ase81056_47"].forEach((k) =>
+    ["points", "superdec", "superflex_occ_ase", "ours_cloud"].forEach((s) => $("partial").append(img(`assets/partial/${k}_${s}.png`, `${s}, partial object`))));
+
+
+  /* Citation */
+  $("bib-copy").onclick = function () {
+    const b = this, done = (t) => { b.textContent = t; setTimeout(() => { b.textContent = "Copy BibTeX"; }, 1600); };
+    const pick = () => { const r = document.createRange(); r.selectNodeContents($("bib")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); done("Selected: press copy"); };
+    if (navigator.clipboard) navigator.clipboard.writeText($("bib").textContent).then(() => done("Copied"), pick); else pick();
+  };
+
+  /* Scenes and more simulation results. The four rooms load only when they come near, about 7 MB each. */
+  const ROOMS = ["room0", "room2", "office2", "office4"];
+  // SuperDec and SuperFlex are the versions in the paper: SuperDec on normalized input, SuperFlex with its unsup_robust ASE weights
+  const SIDES = ["A", "B", "C"], START = { A: "superdec_normalized", B: "superflex_occ_ase_unsup", C: "ours" };
+  const PART = [0xE69F00, 0x56B4E9, 0x009E73, 0xCC79A7, 0x0072B2, 0xD55E00, 0xF0E442, 0x999999];
+  const TINT = { ok: "rgb(35,120,74)", bad: "rgb(190,52,40)", fixed: "rgb(46,110,180)", gone: "#98a2ac", warn: "rgb(214,118,20)", neutral: "#6f7d8c" };
+  const STATE = { "at rest": ["at rest", "ok"], moved: ["moved or fell", "bad"], fixed: ["held", "fixed"], removed: ["removed", "gone"], "blew up": ["blew up, taken out", "warn"], excluded: ["left out", "gone"], missing: ["not delivered", "gone"] };
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  const rx = { room: null, data: null, cache: {}, time: 0, mode: "physics", scan: false, scanOp: .55, sel: null,
+    methods: { ...START }, clips: "room0", playing: !stopped, visible: false, started: false, hold: 0 };
+  // a method's physics: the paper's release with the speed cap (project_page_data.py paper-rooms)
+  const P = (d, mid) => (d.paper && d.paper[mid]) || d.methods[mid];
+  const views = {};
+  let rxThree = null;
+  const rxBytes = (s) => { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; };
+  const eachView = (f) => Object.values(views).forEach(f);
+  function waitText(text) { SIDES.forEach((s) => { const h = $("rx-view" + s); let w = h.querySelector(".rx-wait"); if (!w) { w = el("div", "rx-wait"); h.append(w); } w.textContent = text; }); }
+
+  // one fetch per room, shared by the scenes and the robot runs
+  function rxLoad(room) {
+    if (!rx.cache[room]) rx.cache[room] = rxFetch(room).catch((e) => { delete rx.cache[room]; throw e; });
+    return rx.cache[room];
+  }
+  async function rxFetch(room) {
+    const r = await fetch(`assets/rooms/${room}.json`);
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json(), T = rxThree;
+    d.geo = {}; d.motion = {};
+    if (T) {
+      d.topoArr = d.topo.map((t) => new Uint16Array(rxBytes(t)));
+      const q = new Int16Array(rxBytes(d.scan.pos)), pos = new Float32Array(q.length);
+      for (let i = 0; i < q.length; i++) pos[i] = q[i] * d.step;
+      const c8 = new Uint8Array(rxBytes(d.scan.col)), col = new Float32Array(c8.length);
+      for (let i = 0; i < c8.length; i++) col[i] = c8[i] / 255;
+      d.scanGeo = new T.BufferGeometry();
+      d.scanGeo.setAttribute("position", new T.BufferAttribute(pos, 3));
+      d.scanGeo.setAttribute("color", new T.BufferAttribute(col, 3));
+    }
+    d.lo = d.lo.map((v, i) => v - d.origin[i]); d.hi = d.hi.map((v, i) => v - d.origin[i]);
+    d.floor = d.floor_z - d.origin[2];
+    return d;
+  }
+  function rxGeoms(d, mid) {
+    if (d.geo[mid]) return d.geo[mid];
+    const T = rxThree, M = d.methods[mid];
+    d.geo[mid] = M.meshes.map((m) => {
+      const q = new Int16Array(rxBytes(m.v)), p = new Float32Array(q.length);
+      for (let i = 0; i < q.length; i++) p[i] = q[i] * d.step;
+      const g = new T.BufferGeometry();
+      g.setAttribute("position", new T.BufferAttribute(p, 3));
+      g.setIndex(new T.BufferAttribute(d.topoArr[m.t], 1));
+      g.computeVertexNormals(); g.computeBoundingSphere();
+      return { o: m.o, p: m.p, n: m.n, g };
+    });
+    return d.geo[mid];
+  }
+  function rxMotion(d, mid) {
+    const key = "paper:" + mid;
+    if (d.motion[key]) return d.motion[key];
+    const T = rxThree, M = P(d, mid);
+    if (!T || !M) return {};
+    const mo = {}, o = new T.Vector3(...d.origin);
+    for (const [k, s] of Object.entries(M.motion)) {
+      const a = new Float32Array(rxBytes(s)), frames = [];
+      for (let f = 0; f < a.length / 7; f++) {
+        const q = new T.Quaternion(a[f * 7 + 3], a[f * 7 + 4], a[f * 7 + 5], a[f * 7 + 6]);
+        // the mesh is in room coordinates less the origin; the body moves points x to R x + p
+        const t = o.clone().applyQuaternion(q).add(new T.Vector3(a[f * 7], a[f * 7 + 1], a[f * 7 + 2])).sub(o);
+        frames.push({ t, q });
+      }
+      mo[k] = frames;
+    }
+    d.motion[key] = mo;
+    return mo;
+  }
+  function rxView(side) {
+    const T = rxThree, host = $("rx-view" + side);
+    const renderer = new T.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+    host.prepend(renderer.domElement);
+    const scene = new T.Scene(); scene.background = new T.Color(0xeef1f4);
+    const camera = new T.PerspectiveCamera(45, 4 / 3, .05, 200); camera.up.set(0, 0, 1);
+    scene.add(new T.HemisphereLight(0xffffff, 0x8a8f96, .85));
+    const sun = new T.DirectionalLight(0xffffff, .55); sun.position.set(3, -4, 8); scene.add(sun);
+    const controls = new T.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = false; controls.screenSpacePanning = true;
+    renderer.domElement.style.touchAction = "pan-y";
+    // a plain wheel keeps scrolling the page; Ctrl, Cmd or a pinch zooms
+    host.addEventListener("wheel", (e) => { if (!e.ctrlKey && !e.metaKey) e.stopPropagation(); }, { capture: true, passive: true });
+    const tip = el("div", "rx-tip"); tip.hidden = true; host.append(tip);
+    const v = { side, host, renderer, scene, camera, controls, tip, groups: new Map(), scanPts: null, method: null, dirty: true };
+    new ResizeObserver(() => { const w = host.clientWidth, h = host.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); v.dirty = true; }).observe(host);
+    const ray = new T.Raycaster();
+    const hit = (ev) => {
+      const r = renderer.domElement.getBoundingClientRect();
+      ray.setFromCamera(new T.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1), camera);
+      const meshes = []; for (const g of v.groups.values()) for (const m of g.children) if (m.material.opacity > .5) meshes.push(m);
+      const h = ray.intersectObjects(meshes, false)[0];
+      return h ? { mesh: h.object, x: ev.clientX - r.left, y: ev.clientY - r.top } : null;
+    };
+    let down = null;
+    renderer.domElement.addEventListener("pointerdown", (ev) => { down = [ev.clientX, ev.clientY]; });
+    renderer.domElement.addEventListener("pointerup", (ev) => { if (!down || Math.hypot(ev.clientX - down[0], ev.clientY - down[1]) > 4) return; const h = hit(ev); rxSelect(h ? h.mesh.userData.o : null); });
+    renderer.domElement.addEventListener("pointermove", (ev) => {
+      if (ev.buttons || ev.pointerType === "touch") { tip.hidden = true; return; }
+      const h = hit(ev); if (!h) { tip.hidden = true; return; }
+      const ob = rx.data.objects[h.mesh.userData.o], s = P(rx.data, v.method).objects[ob.key], st = STATE[s.state] || [s.state, "gone"];
+      tip.innerHTML = `<b>${esc(ob.key)}</b> ${esc(ob.cls)}${h.mesh.userData.n ? " · " + esc(h.mesh.userData.n) : ""} · <span class="rx-c-${st[1]}">${esc(st[0])}</span>`;
+      tip.hidden = false; tip.style.left = Math.max(4, Math.min(h.x + 12, host.clientWidth - tip.offsetWidth - 6)) + "px"; tip.style.top = Math.min(h.y + 12, host.clientHeight - 30) + "px";
+    });
+    renderer.domElement.addEventListener("pointerleave", () => { tip.hidden = true; });
+    controls.addEventListener("change", () => {
+      v.dirty = true;
+      if (rx.syncing) return; rx.syncing = true;
+      for (const b of Object.values(views)) if (b !== v) { b.camera.position.copy(camera.position); b.controls.target.copy(controls.target); b.controls.update(); b.dirty = true; }
+      rx.syncing = false;
+    });
+    return v;
+  }
+  function rxFill(v, d, mid) {
+    const T = rxThree;
+    for (const g of v.groups.values()) v.scene.remove(g);
+    v.groups.clear();
+    if (v.scanPts) v.scene.remove(v.scanPts);
+    v.scanPts = new T.Points(d.scanGeo, new T.PointsMaterial({ size: .014, vertexColors: true, transparent: true, opacity: rx.scanOp, depthWrite: false }));
+    v.scanPts.visible = rx.scan; v.scene.add(v.scanPts);
+    v.method = mid;
+    if (!d.methods[mid]) return;
+    for (const m of rxGeoms(d, mid)) {
+      let g = v.groups.get(m.o);
+      if (!g) { g = new T.Group(); g.matrixAutoUpdate = false; g.userData.obj = m.o; v.groups.set(m.o, g); v.scene.add(g); }
+      const mesh = new T.Mesh(m.g, new T.MeshStandardMaterial({ roughness: .78, metalness: 0, side: T.DoubleSide, transparent: true }));
+      mesh.userData = { o: m.o, p: m.p, n: m.n }; g.add(mesh);
+    }
+    const w = v.host.querySelector(".rx-wait"); if (w) w.remove();
+    rxPose(v); rxPaint(v);
+  }
+  const unit = { }; 
+  function rxPose(v) {
+    const T = rxThree, mo = rxMotion(rx.data, v.method), i = Math.floor(rx.time), f = rx.time - i;
+    unit.s = unit.s || new T.Vector3(1, 1, 1); unit.t = unit.t || new T.Vector3(); unit.q = unit.q || new T.Quaternion();
+    for (const [k, g] of v.groups) {
+      const fr = mo[String(k)];
+      if (fr && fr.length) {
+        const a = fr[Math.min(i, fr.length - 1)], b = fr[Math.min(i + 1, fr.length - 1)];
+        unit.t.copy(a.t).lerp(b.t, f); unit.q.copy(a.q).slerp(b.q, f);
+        g.matrix.compose(unit.t, unit.q, unit.s);
+      } else g.matrix.identity();
+      g.matrixWorldNeedsUpdate = true;
+    }
+    v.dirty = true;
+  }
+  function rxColour(mid, o, p) {
+    const T = rxThree, d = rx.data, key = d.objects[o].key;
+    if (rx.mode === "parts") return new T.Color(PART[p % PART.length]);
+    return new T.Color(TINT[(STATE[P(d, mid).objects[key].state] || ["", "gone"])[1]]);
+  }
+  function rxPaint(v) {
+    for (const g of v.groups.values()) for (const mesh of g.children) {
+      const { o, p } = mesh.userData;
+      mesh.material.color.copy(rxColour(v.method, o, p));
+      const faded = rx.sel !== null && rx.sel !== o;
+      mesh.material.opacity = faded ? .14 : 1; mesh.material.depthWrite = !faded; mesh.renderOrder = faded ? 1 : 0;
+    }
+    v.dirty = true;
+  }
+  function rxSync() { const a = views.A; if (!a) return; a.dirty = true; for (const b of Object.values(views)) if (b !== a) { b.camera.position.copy(a.camera.position); b.controls.target.copy(a.controls.target); b.controls.update(); b.dirty = true; } }
+  function rxFrameAll() {
+    const d = rx.data, v = views.A; if (!v) return;
+    const sx = d.hi[0] - d.lo[0], sy = d.hi[1] - d.lo[1];
+    v.controls.target.set((d.lo[0] + d.hi[0]) / 2, (d.lo[1] + d.hi[1]) / 2, d.floor + .4);
+    v.camera.position.set(v.controls.target.x - .45 * sx, v.controls.target.y - .95 * sy, d.floor + .55 * Math.max(sx, sy) + 1.6);
+    v.controls.update(); rxSync();
+  }
+  function rxTopView() {
+    const d = rx.data, v = views.A; if (!v) return;
+    v.controls.target.set((d.lo[0] + d.hi[0]) / 2, (d.lo[1] + d.hi[1]) / 2, d.floor);
+    v.camera.position.set(v.controls.target.x, v.controls.target.y - .01, d.floor + 1.25 * Math.max(d.hi[0] - d.lo[0], d.hi[1] - d.lo[1]) + 1);
+    v.controls.update(); rxSync();
+  }
+  function rxFocus(o) {
+    const T = rxThree, v = views.A; if (!v) return;
+    const g = Object.values(views).map((w) => w.groups.get(o)).find(Boolean); if (!g) return;
+    const box = new T.Box3().setFromObject(g); if (box.isEmpty()) return;
+    const c = box.getCenter(new T.Vector3()), r = Math.max(.6, box.getSize(new T.Vector3()).length());
+    const dir = v.camera.position.clone().sub(v.controls.target).normalize();
+    v.controls.target.copy(c); v.camera.position.copy(c.clone().add(dir.multiplyScalar(r * 1.6))); v.controls.update(); rxSync();
+  }
+  const rxFrames = () => Math.max(1, ...Object.values(START).map((m) => P(rx.data, m).frames || 1));
+  function rxSetTime(t) {
+    const n = rxFrames(), pf = rx.data.paper ? 0 : rx.data.pull_frames || 0;
+    rx.time = Math.max(0, Math.min(n - 1, t));
+    $("rx-time").value = rx.time;
+    $("rx-tlabel").textContent = `${(rx.time / rx.data.fps).toFixed(1)} s, ${rx.time < .05 ? "as placed" : rx.time <= pf ? "separating" : rx.time >= n - 1 ? "after release" : "released"}`;
+    eachView(rxPose);
+  }
+  function rxPlaying(on) { rx.playing = on; $("rx-play").textContent = on ? "Pause" : "Play"; rx.hold = 0; }
+  $("rx-time").addEventListener("input", () => { rxPlaying(false); if (rx.data) rxSetTime(+$("rx-time").value); });
+  $("rx-play").onclick = () => { if (rx.playing) return rxPlaying(false); if (rx.data && rx.time >= rxFrames() - 1) rxSetTime(0); rxPlaying(true); };
+  let rxLast = 0;
+  function rxTick(now) {
+    requestAnimationFrame(rxTick);
+    const dt = Math.min(.1, (now - rxLast) / 1000); rxLast = now;
+    if (!rx.visible || !rx.data) return;
+    if (rx.playing) {
+      const n = rxFrames() - 1;
+      if (rx.time >= n) { rx.hold += dt; if (rx.hold > 1.4) { rx.hold = 0; rxSetTime(0); } }
+      else rxSetTime(rx.time + dt * rx.data.fps);
+    }
+    eachView((v) => { if (v.dirty) { v.renderer.render(v.scene, v.camera); v.dirty = false; } });
+  }
+  function rxSeg(id, key, after) {
+    $(id).addEventListener("click", (ev) => {
+      const b = ev.target.closest("button"); if (!b || b.disabled) return;
+      rx[key] = b.dataset.v;
+      for (const x of $(id).querySelectorAll("button")) x.setAttribute("aria-pressed", String(x === b));
+      if (rx.data) after();
+    });
+  }
+  rxSeg("rx-mode", "mode", () => { rxLegend(); eachView(rxPaint); });
+  $("rx-scan").addEventListener("change", (ev) => { rx.scan = ev.target.checked; eachView((v) => { if (v.scanPts) v.scanPts.visible = rx.scan; v.dirty = true; }); });
+  $("rx-scanop").addEventListener("input", (ev) => { rx.scanOp = +ev.target.value; eachView((v) => { if (v.scanPts) v.scanPts.material.opacity = rx.scanOp; v.dirty = true; }); });
+  $("rx-reset").onclick = rxFrameAll;
+  $("rx-top").onclick = rxTopView;
+  function rxLegend() {
+    const L = $("rx-legend");
+    if (rx.mode === "parts") { L.innerHTML = "<span>Each object's primitives colored in order, as in Fig. 1</span>"; return; }
+    const seen = new Map();
+    for (const [, [text, c]] of Object.entries(STATE)) { if (!seen.has(c)) seen.set(c, []); seen.get(c).push(text); }
+    L.innerHTML = [...seen].map(([c, t]) => `<span><i class="rx-dot" style="background:${TINT[c]}"></i>${esc(t.join(" / "))}</span>`).join("");
+  }
+  function rxSelect(o) {
+    rx.sel = o;
+    eachView(rxPaint);
+  }
+  async function rxOpen(room) {
+    for (const b of document.querySelectorAll(".rx-tabs .tab")) b.setAttribute("aria-pressed", String(b.dataset.room === room));
+    if (rxThree) waitText("Loading…");
+    let d;
+    try { d = await rxLoad(room); } catch (e) { waitText("The room's data did not load. Refresh the page to try again."); return; }
+    rx.room = room; rx.data = d; rx.sel = null; rx.time = 0;
+    $("rx-time").max = rxFrames() - 1;
+    SIDES.forEach((side) => {
+      if (views[side]) rxFill(views[side], d, rx.methods[side]);
+    });
+    if (rxThree) SIDES.forEach((s) => { const w = $("rx-view" + s).querySelector(".rx-wait"); if (w) w.remove(); }); else waitText("The interactive scene requires WebGL. Please try a WebGL-enabled browser.");
+    rxFrameAll(); rxSetTime(0); rxLegend();
+    if (location.hash && ROOMS.includes(location.hash.slice(1)) && location.hash.slice(1) !== room) history.replaceState(null, "", "#" + room);
+  }
+  document.querySelector(".rx-tabs").addEventListener("click", (ev) => { const b = ev.target.closest(".tab"); if (b) rxOpen(b.dataset.room); });
+  // a video of the three methods side by side, labelled with the methods only
+  function trio(src, label) {
+    const box = el("div", "video", '<div class="trip"><div>PhysDec-Loop</div><div>SuperDec</div><div>SuperFlex</div></div>'), v = document.createElement("video");
+    v.muted = true; v.defaultMuted = true; v.loop = true; v.playsInline = true; v.setAttribute("playsinline", ""); v.controls = true; v.preload = "none";
+    v.poster = src.replace(/\.mp4$/, ".jpg"); v.src = src; v.setAttribute("aria-label", label);
+    const d = SIZES[src]; if (d) { v.width = d[0]; v.height = d[1]; }
+    box.append(watch(v));
+    return box;
+  }
+  // One player per group. Only the selected clip is loaded and played.
+  function videoTabs(host, items) {
+    if (!items.length) return;
+    const tabs = el("div", "demo-tabs"), panel = el("div", "demo-panel");
+    tabs.setAttribute("role", "tablist");
+    tabs.setAttribute("aria-label", host.id === "scene-clips" ? "Scene manipulation examples" : "Ground-plane manipulation examples");
+    panel.id = host.id + "-panel";
+    panel.setAttribute("role", "tabpanel");
+    const player = trio(items[0].src, items[0].description);
+    const video = player.querySelector("video");
+    panel.append(player);
+    const buttons = items.map((item, i) => {
+      const button = el("button", "demo-tab");
+      button.type = "button";
+      button.textContent = item.label;
+      button.id = host.id + "-tab-" + i;
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-controls", panel.id);
+      tabs.append(button);
+      return button;
+    });
+    host.replaceChildren(tabs, panel);
+    let active = -1;
+    function select(index, focus = false) {
+      if (index === active) { if (focus) buttons[index].focus(); return; }
+      video.pause();
+      const item = items[index];
+      buttons.forEach((button, i) => {
+        button.setAttribute("aria-selected", String(i === index));
+        button.tabIndex = i === index ? 0 : -1;
+      });
+      panel.setAttribute("aria-labelledby", buttons[index].id);
+      if (active !== -1) {
+        video.poster = item.src.replace(/\.mp4$/, ".jpg");
+        video.src = item.src;
+        const size = SIZES[item.src];
+        if (size) { video.width = size[0]; video.height = size[1]; }
+        video.setAttribute("aria-label", item.description);
+        video.load();
+      }
+      active = index;
+      if (focus) buttons[index].focus();
+      sync(video);
+    }
+    buttons.forEach((button, i) => {
+      button.addEventListener("click", () => select(i));
+      button.addEventListener("keydown", (event) => {
+        let next;
+        if (event.key === "ArrowRight") next = (i + 1) % items.length;
+        else if (event.key === "ArrowLeft") next = (i - 1 + items.length) % items.length;
+        else if (event.key === "Home") next = 0;
+        else if (event.key === "End") next = items.length - 1;
+        else return;
+        event.preventDefault();
+        select(next, true);
+      });
+    });
+    select(0);
+  }
+  videoTabs($("scene-clips"), [{"src": "assets/video/bin.mp4", "label": "Bin · room0", "description": "A robot picks up a bin in each method's room0"}, {"src": "assets/video/chair.mp4", "label": "Chair · room2", "description": "A robot pulls a chair by its backrest in each method's room2"}, {"src": "assets/video/end_table.mp4", "label": "End table · room0", "description": "A robot picks up an end table in each method's room0"}, {"src": "assets/video/end_table_office2.mp4", "label": "End table · office2", "description": "A robot picks up an end table in each method's office2"}, {"src": "assets/video/chair_office4.mp4", "label": "Chair · office4", "description": "A robot picks up a chair in each method's office4"}, {"src": "assets/video/chair_office2.mp4", "label": "Chair · office2", "description": "A robot picks up a chair in each method's office2"}]);
+  function planeSection() {
+    fetch("assets/plane/table.json").then((r) => r.json()).then((t) => {
+      const by = Object.fromEntries(t.rows.map((r) => [r.key, r]));
+      videoTabs($("plane-clips"), t.videos.map((k) => ({
+        src: `assets/plane/${k}.mp4`,
+        label: by[k].cat.charAt(0).toUpperCase() + by[k].cat.slice(1) + " " + k.split("_").pop(),
+        description: `A robot picks up a ShapeNet ${by[k].cat} in each method`
+      })));
+    }).catch(() => { $("plane-clips").append(el("p", "note", "The demo's data did not load. Refresh the page to try again.")); });
+  }
+  roomMotion = (on) => rxPlaying(on);
+  rxPlaying(!stopped);
+  function rxStart() {
+    if (rx.started) return; rx.started = true;
+    try {
+      if (window.THREE && window.THREE.OrbitControls) { rxThree = window.THREE; SIDES.forEach((s) => { views[s] = rxView(s); }); }
+    } catch (e) { rxThree = null; for (const k of Object.keys(views)) delete views[k]; }
+    planeSection();
+    const first = ROOMS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "room0";
+    rxOpen(first);
+    requestAnimationFrame(rxTick);
+  }
+  if ("IntersectionObserver" in window) {
+    const near = new IntersectionObserver((es, ob) => { if (es.some((e) => e.isIntersecting)) { ob.disconnect(); rxStart(); } }, { rootMargin: "900px" });
+    near.observe($("rooms")); near.observe($("robot"));
+    new IntersectionObserver((es) => { rx.visible = es[0].isIntersecting; }, { rootMargin: "100px" }).observe(document.querySelector(".rx-bench"));
+  } else { rx.visible = true; rxStart(); }
+  if (ROOMS.includes(location.hash.slice(1))) rxStart();
+  addEventListener("hashchange", () => { const r = location.hash.slice(1); if (ROOMS.includes(r)) { rxStart(); if (rx.data && r !== rx.room) rxOpen(r); } });
+
+  /* The physics test in 3D */
+  const OBJECTS = [["sf_lamp_22", "Desk lamp"], ["sf_chair_42", "Chair"], ["sf_display_17", "Display"], ["sf_watercraft_52", "Watercraft"], ["sf_lamp_16", "Arc lamp"], ["sf_airplane_51", "Airplane"]];
+  const panels = [...document.querySelectorAll(".panel")];
+  const STILLS = ["points", "superdec_0", "superflex_tb_0", "teacher_0"];
+  let current = OBJECTS[0][0], show = () => {};
+  function stills(key) { panels.forEach((p, i) => { p.querySelector(".still").src = `assets/teaser/${key}_${STILLS[i]}.png`; }); }
+  OBJECTS.forEach(([key, name]) => {
+    const b = el("button", "chip"); b.type = "button"; b.dataset.key = key;
+    b.setAttribute("aria-pressed", key === current);
+    const t = new Image(); t.src = `assets/teaser/${key}_points.png`; t.alt = "";
+    b.append(t, document.createTextNode(name));
+    b.onclick = () => {
+      current = key;
+      document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", c === b));
+      stills(key); show(key);
+    };
+    $("drop-chips").append(b);
+  });
+  stills(current);
+  function verdictText(v) {
+    if (v.clean) return ["ok", "✓ " + (/^hangs/.test(v.reason) ? "hangs level" : v.reason)];
+    if (v.pieces > 1) return ["bad", "✗ " + v.pieces + " pieces" + (v.reason === "falls over" ? ", falls over" : "")];
+    return ["bad", "✗ " + v.reason];
+  }
+
+  const THREE = window.THREE;
+  if (!THREE || !THREE.OrbitControls) return;   // the stills stay
+  const canvas = $("drop-canvas");
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); } catch (e) { return; }
+  renderer.setClearColor(0xffffff, 1);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.setScissorTest(true);
+
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, .01, 60);
+  camera.up.set(0, 0, 1);
+  const controls = new THREE.OrbitControls(camera, canvas);
+  controls.enablePan = false; controls.enableZoom = false; controls.enableDamping = true; controls.dampingFactor = .12;
+  canvas.style.touchAction = "pan-y";
+
+  const bytes = (s) => { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; };
+  const linear = (hex) => new THREE.Color(hex).convertSRGBToLinear();
+  const FRAME = 1.1;
+
+  function lit(scene) {
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xcfd3d9, .78));
+    const key = new THREE.DirectionalLight(0xffffff, .62); key.position.set(4, -3, 6); scene.add(key);
+    const over = new THREE.DirectionalLight(0xffffff, .22); over.position.set(.5, .35, 6);
+    over.castShadow = true; over.shadow.mapSize.set(1024, 1024);
+    const c = over.shadow.camera; c.left = c.bottom = -2.4; c.right = c.top = 2.4; c.near = .1; c.far = 14;
+    over.shadow.bias = -.0006; over.shadow.radius = 4;
+    scene.add(over);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), new THREE.ShadowMaterial({ opacity: .2 }));
+    floor.receiveShadow = true; scene.add(floor);
+  }
+  function build(d) {
+    const q = d.quant, scenes = [];
+    const cloud = new THREE.Scene();
+    const p16 = new Int16Array(bytes(d.points.pos)), shade = new Uint8Array(bytes(d.points.shade));
+    const g = new THREE.BufferGeometry(), pos = new Float32Array(p16.length), col = new Float32Array(p16.length);
+    const base = new THREE.Color(.33, .39, .47);
+    for (let i = 0; i < shade.length; i++) {
+      pos[3 * i] = p16[3 * i] / q; pos[3 * i + 1] = p16[3 * i + 1] / q; pos[3 * i + 2] = p16[3 * i + 2] / q;
+      const s = shade[i] / 255, c = new THREE.Color(base.r * s, base.g * s, base.b * s).convertSRGBToLinear();
+      col[3 * i] = c.r; col[3 * i + 1] = c.g; col[3 * i + 2] = c.b;
+    }
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    cloud.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 2.1 * Math.min(devicePixelRatio || 1, 2), sizeAttenuation: false, vertexColors: true })));
+    scenes.push({ scene: cloud, update() {} });
+
+    d.methods.forEach((m) => {
+      const scene = new THREE.Scene(); lit(scene);
+      const meshes = m.parts.map((p) => {
+        const v = new Int16Array(bytes(p.pos)), n = new Int8Array(bytes(p.nrm));
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(Float32Array.from(v, (x) => x / q), 3));
+        geo.setAttribute("normal", new THREE.BufferAttribute(Float32Array.from(n, (x) => x / 127), 3));
+        geo.setIndex(new THREE.BufferAttribute(new Uint16Array(bytes(p.idx)), 1));
+        const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ color: linear(p.color), specular: 0x161616, shininess: 24, side: THREE.DoubleSide }));
+        mesh.castShadow = true; mesh.frustumCulled = false; scene.add(mesh);
+        return mesh;
+      });
+      const pose = new Float32Array(bytes(m.pose)), P = meshes.length, F = Math.floor(pose.length / (7 * P));
+      let rod = null, attach = null;
+      if (m.rod) {
+        attach = new Float32Array(bytes(m.rod.attach));
+        const lg = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...m.rod.pivot), new THREE.Vector3(...m.rod.pivot)]);
+        rod = new THREE.Line(lg, new THREE.LineBasicMaterial({ color: linear("#3c424a") })); rod.frustumCulled = false; scene.add(rod);
+      }
+      scenes.push({ scene, update(i) {
+        const f = Math.min(i, F - 1);
+        meshes.forEach((mesh, k) => {
+          const o = (f * P + k) * 7;
+          mesh.quaternion.set(pose[o], pose[o + 1], pose[o + 2], pose[o + 3]);
+          mesh.position.set(pose[o + 4], pose[o + 5], pose[o + 6]);
+        });
+        if (rod) { const a = rod.geometry.attributes.position; a.setXYZ(1, attach[3 * f], attach[3 * f + 1], attach[3 * f + 2]); a.needsUpdate = true; }
+      } });
+    });
+    return scenes;
+  }
+
+  const cache = new Map();
+  let live = null, data = null, time = 0, clock = 0, playing = !stopped, dirty = true, visible = true, last = 0, token = 0;
+  function setTime(t) {
+    time = t;
+    const i = Math.round(t * 25);
+    if (live) live.forEach((s) => s.update(i));
+    $("drop-time").value = t;
+    $("drop-clock").textContent = "t = " + t.toFixed(2) + " s";
+    dirty = true;
+  }
+  function aim(d) {
+    const e = d.el * Math.PI / 180;
+    controls.target.set(0, 0, d.zc);
+    camera.position.set(9 * Math.cos(e), 0, d.zc + 9 * Math.sin(e));
+    camera.zoom = 1; camera.updateProjectionMatrix(); controls.update();
+    dirty = true;
+  }
+  function setPlaying(p) { playing = p; $("drop-play").textContent = p ? "Pause" : "Play"; }
+  heroMotion = (on) => { if (on && !playing) clock = time >= 3.99 ? -.3 : time; setPlaying(on); };
+  show = (key) => {
+    const mine = ++token;
+    const got = cache.has(key) ? Promise.resolve(cache.get(key)) : fetch(`assets/drop/${key}.json`).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).then((d) => { const v = { d, scenes: build(d) }; cache.set(key, v); return v; });
+    got.then((v) => {
+      if (mine !== token) return;
+      data = v.d; live = v.scenes;
+      canvas.hidden = false; $("drop-controls").hidden = false;
+      panels.forEach((p, i) => {
+        if (!i) return;
+        const t = verdictText(data.methods[i - 1].verdict), s = p.querySelector(".verdict");
+        s.className = "verdict " + t[0]; s.textContent = t[1];
+      });
+      aim(data);
+      clock = stopped ? 4 : -.5;
+      setPlaying(!stopped);
+      setTime(stopped ? 4 : 0);
+    }).catch(() => {
+      canvas.hidden = true; $("drop-controls").hidden = true;
+      panels.forEach((p, i) => { if (i) p.querySelector(".verdict").textContent = ""; });
+    });
+  };
+  controls.addEventListener("change", () => { dirty = true; });
+  $("drop-play").onclick = () => {
+    if (!playing && time >= 3.99) clock = -.3; else clock = time;
+    setPlaying(!playing);
+  };
+  $("drop-time").oninput = (e) => { setPlaying(false); clock = +e.target.value; setTime(clock); };
+  $("drop-reset").onclick = () => { if (data) aim(data); };
+  if ("IntersectionObserver" in window) new IntersectionObserver((es) => { visible = es[0].isIntersecting; dirty = true; }).observe($("drop-panels"));
+  window.addEventListener("resize", () => { dirty = true; });
+
+  function draw() {
+    const box = $("drop-panels"), w = box.clientWidth, h = box.clientHeight, dpr = Math.min(devicePixelRatio || 1, 2);
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { renderer.setPixelRatio(dpr); renderer.setSize(w, h, false); }
+    renderer.setScissor(0, 0, w, h); renderer.setClearColor(0xffffff, 1); renderer.clear();
+    const top = box.getBoundingClientRect();
+    live.forEach((s, i) => {
+      const r = panels[i].getBoundingClientRect(), x = r.left - top.left, y = h - (r.bottom - top.top), a = r.width / r.height;
+      renderer.setViewport(x, y, r.width, r.height); renderer.setScissor(x, y, r.width, r.height);
+      camera.left = -FRAME * a; camera.right = FRAME * a; camera.top = FRAME; camera.bottom = -FRAME; camera.updateProjectionMatrix();
+      renderer.render(s.scene, camera);
+    });
+  }
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (!visible || !live) { last = now; return; }
+    const dt = Math.min((now - last) / 1000, .1); last = now;
+    if (playing) {
+      clock += dt;
+      if (clock > 5.8) clock = -.5;
+      const t = Math.max(0, Math.min(4, clock));
+      if (t !== time) setTime(t);
+    }
+    controls.update();
+    if (dirty) { dirty = false; draw(); }
+  }
+  show(current);
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
+
+</body></html>

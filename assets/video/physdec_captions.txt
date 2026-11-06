@@ -1,0 +1,137 @@
+WEBVTT
+
+1
+00:00:00.450 --> 00:00:00.934
+PhysDec.
+
+2
+00:00:00.934 --> 00:00:04.988
+Decompose, verify, evolve: physically grounded shape decomposition.
+
+3
+00:00:06.450 --> 00:00:14.042
+Our task is shape decomposition from images: given a few images of an object, predict a compact set of geometric primitives, each with a shape, pose and material.
+
+4
+00:00:14.042 --> 00:00:19.572
+The result should match the geometry and be physically plausible, with connected parts that stay stable in simulation.
+
+5
+00:00:20.822 --> 00:00:23.325
+Existing methods are trained for geometric fidelity.
+
+6
+00:00:23.325 --> 00:00:26.936
+Their results can fit the surface, yet fall apart or topple once simulated.
+
+7
+00:00:26.936 --> 00:00:29.151
+PhysDec's results stay in one piece and stand.
+
+8
+00:00:31.322 --> 00:00:36.270
+PhysDec uses a vision-language model to propose material-aware primitives from the images, in two variants:
+
+9
+00:00:36.270 --> 00:00:41.403
+PhysDec-Loop refines them with geometric and physical feedback, and PhysDec-Evolved predicts from images alone.
+
+10
+00:00:42.653 --> 00:00:49.321
+The primitive vocabulary covers superellipsoids, toroids and hyperboloids, with tapering, bending, swept tubes and radial arrays.
+
+11
+00:00:50.653 --> 00:00:53.282
+Each part's material and construction set its mass.
+
+12
+00:00:53.282 --> 00:00:57.715
+With a uniform density, this lamp falls over; with the predicted materials, it stands.
+
+13
+00:00:59.653 --> 00:01:05.959
+Physical checks require one connected piece, and a pass on the test for the object's support: standing, wall-mounted, or hanging.
+
+14
+00:01:08.153 --> 00:01:11.822
+PhysDec-Loop analyzes the parts and materials and proposes a decomposition.
+
+15
+00:01:11.822 --> 00:01:15.492
+Verifiers check its geometry and physics, and a VLM reviews its appearance.
+
+16
+00:01:15.492 --> 00:01:20.531
+A critique turns this into part-specific feedback, like the floating foot ring, for up to three rounds.
+
+17
+00:01:20.531 --> 00:01:23.270
+We keep the best result that passes the physical checks.
+
+18
+00:01:24.520 --> 00:01:26.542
+Self-evolution reuses these corrections.
+
+19
+00:01:26.542 --> 00:01:33.010
+On twenty training objects per category, it builds a library of examples, insights and material priors, and evolves the prompts.
+
+20
+00:01:33.010 --> 00:01:35.992
+PhysDec-Evolved then needs only two model calls per object.
+
+21
+00:01:38.020 --> 00:01:48.345
+On 585 ShapeNet objects, PhysDec-Loop passes the physical checks for 99.3%, versus 81.7% for the best baseline, with the best Chamfer distance and visual score.
+
+22
+00:01:48.345 --> 00:01:51.507
+PhysDec-Evolved reaches 99.0% in two model calls.
+
+23
+00:01:52.757 --> 00:01:56.804
+As predicted, the baselines fit the surfaces, but their parts are often disconnected.
+
+24
+00:01:59.257 --> 00:02:04.590
+In simulation, each baseline result here falls over or is in several pieces, while both PhysDec variants stand.
+
+25
+00:02:08.257 --> 00:02:14.548
+From partial scans in the Aria Synthetic Environments, PhysDec-Loop is the most accurate, and all of its results pass the physical checks.
+
+26
+00:02:16.257 --> 00:02:21.858
+In Replica scenes, a scene-level VLM infers what supports each object, and a physics solver adjusts the placements.
+
+27
+00:02:21.858 --> 00:02:25.706
+All of our free objects come to rest, while many baseline objects move or fall.
+
+28
+00:02:27.257 --> 00:02:31.745
+A robot arm then manipulates the reconstructions, with the same planner and matched masses.
+
+29
+00:02:31.745 --> 00:02:32.535
+Ours are placed.
+
+30
+00:02:32.535 --> 00:02:36.628
+SuperDec's bin falls apart and only a piece is lifted; SuperFlex's offers no grasp.
+
+31
+00:02:36.628 --> 00:02:40.771
+Pulling the chair collapses SuperDec's table, and SuperFlex's chair hits a neighbor.
+
+32
+00:02:42.021 --> 00:02:48.272
+On a plane, our lamp and chair are placed in all five carry directions, while the baselines fall apart and the robot lifts only a fragment.
+
+33
+00:02:53.021 --> 00:02:57.439
+PhysDec: decompose, verify, evolve, for shape decompositions that hold together.
+
+34
+00:02:57.439 --> 00:02:58.710
+Thank you for watching.

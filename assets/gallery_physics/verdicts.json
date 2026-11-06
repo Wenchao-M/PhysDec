@@ -1,0 +1,170 @@
+{
+ "sf_chair_17/sq": {
+  "clean": false,
+  "pieces": 1,
+  "reason": "falls over",
+  "vlm": 27.85
+ },
+ "sf_chair_17/ems": {
+  "clean": false,
+  "pieces": 6,
+  "reason": "falls over",
+  "vlm": 27.85
+ },
+ "sf_chair_17/marching_primitives": {
+  "clean": false,
+  "pieces": 2,
+  "reason": "stands",
+  "vlm": 74.05
+ },
+ "sf_chair_17/superdec": {
+  "clean": false,
+  "pieces": 9,
+  "reason": "falls over",
+  "vlm": 37.5
+ },
+ "sf_chair_17/superflex_tb": {
+  "clean": false,
+  "pieces": 10,
+  "reason": "falls over",
+  "vlm": 52.9
+ },
+ "sf_chair_17/S3_cam": {
+  "clean": true,
+  "pieces": 1,
+  "reason": "stands",
+  "vlm": 81.75
+ },
+ "sf_chair_17/teacher": {
+  "clean": true,
+  "pieces": 1,
+  "reason": "stands",
+  "vlm": 81.75
+ },
+ "sf_lamp_19/sq": {
+  "clean": false,
+  "pieces": 1,
+  "reason": "falls over",
+  "vlm": 28.45
+ },
+ "sf_lamp_19/ems": {
+  "clean": false,
+  "pieces": 2,
+  "reason": "falls over",
+  "vlm": 30.0
+ },
+ "sf_lamp_19/marching_primitives": {
+  "clean": false,
+  "pieces": 2,
+  "reason": "stands",
+  "vlm": 69.25
+ },
+ "sf_lamp_19/superdec": {
+  "clean": false,
+  "pieces": 4,
+  "reason": "stands",
+  "vlm": 30.0
+ },
+ "sf_lamp_19/superflex_tb": {
+  "clean": false,
+  "pieces": 3,
+  "reason": "falls over",
+  "vlm": 39.45
+ },
+ "sf_lamp_19/S3_cam": {
+  "clean": true,
+  "pieces": 1,
+  "reason": "stands",
+  "vlm": 53.85
+ },
+ "sf_lamp_19/teacher": {
+  "clean": true,
+  "pieces": 1,
+  "reason": "stands",
+  "vlm": 62.5
+ },
+ "sf_lamp_26/sq": {
+  "clean": false,
+  "pieces": 2,
+  "reason": "falls over",
+  "vlm": 30.0
+ },
+ "sf_lamp_26/ems": {
+  "clean": false,
+  "pieces": 4,
+  "reason": "falls over",
+  "vlm": 30.0
+ },
+ "sf_lamp_26/marching_primitives": {
+  "clean": false,
+  "pieces": 4,
+  "reason": "falls over",
+  "vlm": 50.95
+ },
+ "sf_lamp_26/superdec": {
+  "clean": false,
+  "pieces": 2,
+  "reason": "falls over",
+  "vlm": 57.7
+ },
+ "sf_lamp_26/superflex_tb": {
+  "clean": false,
+  "pieces": 4,
+  "reason": "falls over",
+  "vlm": 78.8
+ },
+ "sf_lamp_26/S3_cam": {
+  "clean": true,
+  "pieces": 1,
+  "reason": "stands",
+  "vlm": 87.5
+ },
+ "sf_lamp_26/teacher": {
+  "clean": true,
+  "pieces": 1,
+  "reason": "stands",
+  "vlm": 85.6
+ },
+ "sf_lamp_14/sq": {
+  "clean": false,
+  "pieces": 2,
+  "reason": "1 part(s) joined to nothing fall away: primitive_5",
+  "vlm": 29.4
+ },
+ "sf_lamp_14/ems": {
+  "clean": false,
+  "pieces": 2,
+  "reason": "1 part(s) joined to nothing fall away: primitive_3",
+  "vlm": 30.0
+ },
+ "sf_lamp_14/marching_primitives": {
+  "clean": false,
+  "pieces": 2,
+  "reason": "1 part(s) joined to nothing fall away: primitive_29",
+  "vlm": 46.150000000000006
+ },
+ "sf_lamp_14/superdec": {
+  "clean": false,
+  "pieces": 5,
+  "reason": "5 part(s) joined to nothing fall away: primitive_0, primitive_4, primitive_8, primitive_10",
+  "vlm": 34.25
+ },
+ "sf_lamp_14/superflex_tb": {
+  "clean": false,
+  "pieces": 6,
+  "reason": "6 part(s) joined to nothing fall away: primitive_1, primitive_4, primitive_8, primitive_10",
+  "vlm": 64.45
+ },
+ "sf_lamp_14/S3_cam": {
+  "clean": true,
+  "pieces": 1,
+  "reason": "hangs level (0.0 deg) and holds together",
+  "vlm": 86.55000000000001
+ },
+ "sf_lamp_14/teacher": {
+  "clean": true,
+  "pieces": 1,
+  "reason": "hangs level (0.0 deg) and holds together",
+  "vlm": 82.69999999999999
+ }
+}
