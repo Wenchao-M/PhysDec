@@ -405,6 +405,9 @@ h4 { font-size: 15px; line-height: 1.4; }
 .variant-label { display: block; margin-bottom: 8px; font: 500 11px/1.4 var(--display); color: var(--soft); text-transform: uppercase; letter-spacing: .07em; }
 .variant h3 { font-size: 21px; }
 .variant p { margin-top: 10px; font-size: 14px; line-height: 1.65; color: var(--soft); }
+.method-nav { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+#method .physics-block { margin-top: 48px; padding-top: 32px; border-top: 2px solid var(--rule); }
+#physical-verification, #physdec-loop, #physdec-evolved { scroll-margin-top: 32px; }
 .role { font-family: var(--display); font-size: 11px; }
 .box { border-radius: 8px; padding: 14px; gap: 10px; }
 .box header h4 { font-size: 13px; }

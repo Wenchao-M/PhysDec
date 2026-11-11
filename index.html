@@ -16,14 +16,14 @@
 <h1>Decompose, Verify, Evolve: <span class="title-sub">Physically Grounded Shape Decomposition</span></h1>
 <p class="lede">An agentic pipeline for physically grounded shape decomposition from a few images.</p>
 <div class="author-block">
-  <p class="authors"><span>Wenchao Ma<sup>1,*</sup></span><span>Rui Yu<sup>2,*</sup></span><span>Fan Zhu<sup>2</sup></span><span>Jiachen Liu<sup>3</sup></span><span>Sharon X. Huang<sup>1</sup></span></p>
-  <p class="affiliations"><span><sup>1</sup>Pennsylvania State University</span><span><sup>2</sup>University of Louisville</span><span><sup>3</sup>Netflix</span></p>
+  <p class="authors"><span>Wenchao Ma<sup>1,*</sup></span><span>Rui Yu<sup>2,*</sup></span><span>Fan Zhu<sup>2</sup></span><span>Jiachen Liu<sup>1</sup></span><span>Sharon X. Huang<sup>1</sup></span></p>
+  <p class="affiliations"><span><sup>1</sup>Pennsylvania State University</span><span><sup>2</sup>University of Louisville</span></p>
   <p class="equal-contribution"><sup>*</sup>Equal contribution</p>
 </div>
 <div class="hero-actions"><a class="action primary" href="#drop">Explore the results <span aria-hidden="true">↓</span></a><a class="action" href="#method">How it works <span aria-hidden="true">↘</span></a></div></header>
 
 <div class="wrap stage" id="drop">
-  <div class="demo-heading"><div><p class="eyebrow">Geometry meets physics</p><h2>Decompositions that hold together.</h2></div><span class="demo-hint">Drag to rotate · Play to simulate</span></div><div class="panels" id="drop-panels">
+  <div class="demo-heading"><div><p class="eyebrow">From images to simulation</p><h2>Physically plausible shape decompositions.</h2></div><span class="demo-hint">Drag to rotate · Play to simulate</span></div><div class="panels" id="drop-panels">
     <canvas id="drop-canvas" hidden aria-label="Interactive 3D view of the input points and each method's primitives during the physics test. Drag to rotate."></canvas>
     <div class="panel" data-i="0"><img class="still" alt="Input points"><span class="tag">Input points</span><span class="verdict quiet">Reference geometry</span></div>
     <div class="panel" data-i="1"><img class="still" alt="SuperDec after the physics test"><span class="tag">SuperDec</span><span class="verdict"></span></div>
@@ -48,7 +48,7 @@
 </div>
   <div class="block" id="video">
     <h3>Video</h3>
-    <video class="talk" width="1920" height="1080" style="width:100%;height:auto;background:#fff" src="assets/video/physdec.mp4" poster="assets/video/physdec.jpg" controls playsinline preload="none" aria-label="PhysDec: narrated paper video"></video>
+    <video class="talk" width="1920" height="1080" style="width:100%;height:auto;background:#fff" src="assets/video/physdec.mp4?v=public" poster="assets/video/physdec.jpg?v=public" controls playsinline preload="none" aria-label="PhysDec: narrated paper video"></video>
     <p class="note">A three-minute narrated overview of the paper; captions are in the player.</p>
   </div>
     </section>
@@ -58,7 +58,11 @@
     <p>Given one to four images, PhysDec predicts a compact set of primitives, each with geometry, pose and material attributes.</p>
   </div>
 
-  <div class="variant-grid"><article class="variant"><span class="variant-label">Iterative refinement</span><h3>PhysDec-Loop</h3><p>Refines decompositions through geometric and physical feedback, using a reference 3D point cloud.</p></article><article class="variant direct"><span class="variant-label">Experience-guided prediction</span><h3>PhysDec-Evolved</h3><p>Uses evolved prompts and retrieved experience to predict from images alone, without an online correction loop.</p></article></div><div class="block">
+  <nav class="method-nav" aria-label="Method pipelines">
+    <a class="action" href="#physdec-loop">PhysDec-Loop <span aria-hidden="true">↓</span></a>
+    <a class="action" href="#physdec-evolved">PhysDec-Evolved <span aria-hidden="true">↓</span></a>
+  </nav>
+  <div class="block">
     <div class="prose"><p class="role v">Decompose</p><h3>Compact geometry, meaningful parts</h3></div>
     <div class="split two">
       <div class="prose" style="max-width:none">
@@ -91,13 +95,19 @@
         </div>
       </div>
     </div>
-  <div class="checks" id="checks"></div>
-    <p class="note">Physical checks assess connectivity, standing stability, wall contact and suspended balance. Wall contact is checked geometrically; hinge motion illustrates the failing example.</p>
   </div>
 
-  <div class="block">
+  <div class="block physics-block" id="physical-verification" aria-labelledby="physical-verification-heading">
+    <div class="prose"><p class="role o">Physics</p><h3 id="physical-verification-heading">Physical verification</h3>
+      <p>The predicted parts must remain connected and satisfy checks for their support type: standing stability, wall contact or suspended balance.</p>
+    </div>
+    <div class="checks" id="checks"></div>
+    <p class="note">Green and red mark passing and failing examples. Wall contact is checked geometrically; the perturbed failure is shown with hinge motion for illustration.</p>
+  </div>
+
+  <div class="block" id="physdec-loop">
     <div class="prose"><p class="role o">Verify</p><h3>PhysDec-Loop</h3>
-      <p>The VLM analyzes the images and proposes a decomposition. Geometric and physical verifiers assess the proposal; Critique turns their outputs into feedback, which Propose uses to revise the decomposition.</p>
+      <p>The VLM analyzes images of the object and proposes a material-aware primitive decomposition. Geometric and physical verifiers, together with a VLM reviewer, assess the proposal. Critique turns these outputs into feedback, which Propose uses to generate the next decomposition. The highest-scoring decomposition that passes the physical checks is selected. Blue marks VLM reasoning; orange marks verification with tools and VLM review.</p>
     </div>
     <div class="loop" aria-label="PhysDec-Loop: analyse, propose, verify and critique">
       <article class="box"><header><h4>Input</h4></header>
@@ -142,15 +152,11 @@
         <p class="back">next round, up to 3</p>
       </div>
     </div>
-    <div class="split two">
-      <div class="prose" style="max-width:none"><h4>Select physically valid predictions</h4><p>We retain the highest-scoring decomposition that passes the physical checks. If none passes, we retain the highest-scoring proposal.</p></div>
-      <div class="prose" style="max-width:none"><h4>Turn verification into feedback</h4><p>Chamfer error maps reveal local shape errors. Physical checks test stability for the predicted support type, while a VLM reviews visual quality. Critique combines these signals into part-specific revision guidance.</p></div>
-    </div>
-    </div>
+  </div>
 
-  <div class="block">
+  <div class="block" id="physdec-evolved">
     <div class="prose"><p class="role e">Evolve</p><h3>PhysDec-Evolved</h3>
-      <p>Self-evolution converts verified corrections into improved prompts and a library of examples, insights and material priors. PhysDec-Evolved uses this experience to predict in two VLM calls, with fixed model weights and no online correction loop.</p>
+      <p>On training objects, corrections from PhysDec-Loop provide successful examples, reusable insights and material priors for the retrieval library, and guide prompt evolution with GEPA. For a new object, PhysDec-Evolved analyzes the images, retrieves relevant experience and predicts a decomposition using the evolved prompts in two VLM calls, without an online correction loop.</p>
     </div>
     <div class="lanes">
       <p class="lane-title">Learn from training objects <small>Reference geometry available</small></p>
@@ -1063,5 +1069,3 @@
 
 </body>
 </html>
-
-</body></html>
