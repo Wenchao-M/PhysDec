@@ -48,8 +48,7 @@
 </div>
   <div class="block" id="video">
     <h3>Video</h3>
-    <video class="talk" width="1920" height="1080" style="width:100%;height:auto;background:#fff" src="assets/video/physdec.mp4?v=public" poster="assets/video/physdec.jpg?v=public" controls playsinline preload="none" aria-label="PhysDec: narrated paper video"></video>
-    <p class="note">A narrated overview of PhysDec, with English captions.</p>
+    <video class="talk" width="1920" height="1080" style="width:100%;height:auto;background:#fff" src="assets/video/physdec.mp4?v=public-20261123-latest" poster="assets/video/physdec.jpg?v=public-20261123-latest" controls playsinline preload="none" aria-label="PhysDec: narrated paper video"></video>
   </div>
     </section>
 
@@ -418,7 +417,7 @@
   };
   document.querySelectorAll("video:not(.talk)").forEach(watch);
   // the paper video's captions: served as text, handed to the player as WebVTT
-  fetch("assets/video/physdec_captions.txt").then((r) => (r.ok ? r.text() : Promise.reject(r.status))).then((t) => {
+  fetch("assets/video/physdec_captions.txt?v=public-20261123-latest").then((r) => (r.ok ? r.text() : Promise.reject(r.status))).then((t) => {
     const tr = document.createElement("track");
     tr.kind = "captions"; tr.srclang = "en"; tr.label = "English";
     tr.src = URL.createObjectURL(new Blob([t], { type: "text/vtt" }));
