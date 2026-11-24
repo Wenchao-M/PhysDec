@@ -529,7 +529,7 @@
   const SIDES = ["Input", "A", "B", "C"], START = { A: "superdec_normalized", B: "superflex_occ_ase_unsup", C: "ours" };
   const PART = [0xE69F00, 0x56B4E9, 0x009E73, 0xCC79A7, 0x0072B2, 0xD55E00, 0xF0E442, 0x999999];
   const TINT = { ok: "rgb(35,120,74)", bad: "rgb(190,52,40)", fixed: "rgb(46,110,180)", gone: "#98a2ac", warn: "rgb(214,118,20)", neutral: "#6f7d8c" };
-  const STATE = { "at rest": ["at rest", "ok"], moved: ["moved or fell", "bad"], fixed: ["held", "fixed"], removed: ["removed", "gone"], "blew up": ["blew up, taken out", "warn"], excluded: ["left out", "gone"], missing: ["not delivered", "gone"] };
+  const STATE = { "at rest": ["at rest", "ok"], moved: ["moved or fell", "bad"], fixed: ["held", "fixed"], removed: ["removed", "gone"], "blew up": ["object intersection", "warn"], excluded: ["left out", "gone"], missing: ["not delivered", "gone"] };
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
   const rx = { room: null, data: null, cache: {}, time: 0, mode: "physics", scan: false, scanOp: .55, sel: null,
